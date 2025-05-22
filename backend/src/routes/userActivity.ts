@@ -12,14 +12,18 @@ interface UserActivityMetrics {
 
 interface UserActivityLog {
   timestamp: string;
-  provider: string | null;
-  model: string | null;
-  app: string | null; // Will now be populated by api_key.name
+  provider: string | null; // Actual LLM provider used (e.g., openai, anthropic)
+  model: string | null;    // Actual LLM model used (e.g., gpt-4, claude-2)
   tokens: number;
-  cost?: number | null;
-  responseTime?: number | null; // Updated to match usage_logs column name
-  finish?: string | null; // fallback_reason could be used, or needs clarification
-  // api_key_id is no longer explicitly needed in the log entry if we map it to app directly
+  cost?: number | null;    // LLM Provider cost ($0 for BYOAPI, actual for internal)
+  responseTime?: number | null;
+  finish?: string | null; // Fallback reason or other details
+
+  // Fields for UI display and refined costing
+  key_source: 'byoapi' | 'internal' | 'fallback' | string;
+  api_key_name?: string; // Name of the user's API key if key_source is 'byoapi' or 'fallback'
+  neuroswitch_cost?: number; // NeuroSwitch Classifier Cost (read from DB)
+  request_model?: string; // The model string from the original Fusion request (e.g., "NeuroSwitch", "openai")
 }
 
 interface UserActivityResponse {
@@ -105,14 +109,16 @@ router.get('/activity', verifyToken, async (req: Request, res: Response) => {
          ul.created_at AS timestamp,
          ul.provider,
          ul.model,
-         ul.api_key_id,
          ul.total_tokens AS tokens,
-         ul.cost,
+         ul.cost AS llm_provider_cost, 
+         ul.neuroswitch_fee, -- Select the logged NeuroSwitch fee
          CAST(ul.response_time AS TEXT) AS response_time_text,
-         ul.fallback_reason AS finish_reason,
-         ak.name AS app_name
+         ul.fallback_reason,
+         ul.request_model, 
+         ul.api_key_id,    
+         uak.key_name AS user_api_key_name 
        FROM usage_logs ul
-       LEFT JOIN api_keys ak ON ul.api_key_id = ak.id AND ul.user_id = ak.user_id
+       LEFT JOIN user_external_api_keys uak ON ul.api_key_id = uak.id 
        WHERE ul.user_id = $1 AND ul.created_at >= $2 AND ul.created_at <= $3 ${activityWhereClause}
        ORDER BY ul.created_at DESC
        LIMIT $${activityParamIndex} OFFSET $${activityParamIndex + 1}`,
@@ -120,27 +126,46 @@ router.get('/activity', verifyToken, async (req: Request, res: Response) => {
     );
 
     const activity: UserActivityLog[] = activityResult.rows.map(row => {
-      // Log the raw response_time_text value and its type for each row
-      console.log(`[userActivity.ts MAP] raw row.response_time_text: ${row.response_time_text}, type: ${typeof row.response_time_text}`);
-
       const rtString = row.response_time_text;
-      const mappedResponseTime = (rtString !== null && typeof rtString !== 'undefined' && !isNaN(parseFloat(rtString))) 
-        ? Math.round(parseFloat(rtString) * 1000) 
+      const mappedResponseTime = (rtString !== null && typeof rtString !== 'undefined' && !isNaN(parseFloat(rtString)))
+        ? Math.round(parseFloat(rtString) * 1000)
         : null;
-      
-      // Log the processed responseTime
-      console.log(`[userActivity.ts MAP] mappedResponseTime from text: ${mappedResponseTime}`);
 
+      const tokens = parseInt(row.tokens, 10);
+      const llmProviderCost = row.llm_provider_cost ? parseFloat(row.llm_provider_cost) : 0;
+      
+      // Use the neuroswitch_fee directly from the database
+      const neuroswitchClassifierCost = row.neuroswitch_fee ? parseFloat(row.neuroswitch_fee) : 0;
+
+      let keySource: UserActivityLog['key_source'] = 'internal';
+      let apiKeyNameDisplay: string | undefined = 'Internal API Key'; 
+
+      if (row.fallback_reason) {
+        keySource = 'fallback';
+        apiKeyNameDisplay = `${row.user_api_key_name || 'BYO Key'} (fallback: Internal API Key)`; 
+      } else if (row.api_key_id && row.user_api_key_name) {
+        keySource = 'byoapi';
+        apiKeyNameDisplay = row.user_api_key_name;
+      } else if (row.api_key_id && !row.user_api_key_name) {
+        keySource = 'byoapi';
+        apiKeyNameDisplay = 'BYO Key (Name Missing)';
+      } else if (row.request_model?.toLowerCase() !== 'neuroswitch' && !row.api_key_id) {
+        // Direct selection but no user key ID, so internal key was used for that provider.
+        apiKeyNameDisplay = 'Internal API Key'; 
+      }
+      
       return {
         timestamp: row.timestamp.toISOString(),
         provider: row.provider,
         model: row.model,
-        api_key_id: row.api_key_id,
-        app: row.app_name,
-        tokens: parseInt(row.tokens, 10),
-        cost: row.cost ? parseFloat(row.cost) : null,
+        tokens: tokens,
+        cost: llmProviderCost, 
+        neuroswitch_cost: neuroswitchClassifierCost, // Use the value from DB
         responseTime: mappedResponseTime,
-        finish: row.finish_reason,
+        finish: row.fallback_reason,
+        key_source: keySource,
+        api_key_name: apiKeyNameDisplay,
+        request_model: row.request_model,
       };
     });
     

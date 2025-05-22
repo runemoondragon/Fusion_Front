@@ -2,7 +2,7 @@ import express, { Request, Response } from 'express';
 import axios from 'axios';
 import { verifyToken, User as AuthUser } from '../middleware/auth';
 import pool from '../db';
-import { calculateCost } from '../utils/costCalculator';
+import { calculateLlmProviderCost, getNeuroSwitchClassifierFee } from '../utils/costCalculator';
 import { decrypt } from '../utils/crypto';
 
 interface NeuroSwitchResponse {
@@ -43,19 +43,22 @@ async function logUsage(
   totalTokens: number | undefined,
   responseTimeInput: number | null | undefined = 0,
   fallbackReason: string | null = null,
-  cost: number | null = null
+  llmCost: number | null = null,
+  apiKeyId: number | null = null,
+  requestModel: string | null | undefined,
+  neuroswitchFee: number | null = null
 ) {
-  let queryParams: any[] = []; // Declare queryParams here to be accessible in catch
+  let queryParams: any[] = [];
   try {
     // Ensure responseTime is a number, default to 0 if null or undefined
     const finalResponseTime = (responseTimeInput === null || typeof responseTimeInput === 'undefined') ? 0 : responseTimeInput;
     
-    queryParams = [userId, provider, model, promptTokens || 0, completionTokens || 0, totalTokens || 0, finalResponseTime, fallbackReason, cost];
+    queryParams = [userId, provider, model, promptTokens || 0, completionTokens || 0, totalTokens || 0, finalResponseTime, fallbackReason, llmCost, apiKeyId, requestModel, neuroswitchFee];
     console.log('Executing logUsage INSERT with params:', queryParams); // Log parameters
 
     await pool.query(
-      `INSERT INTO usage_logs (user_id, provider, model, prompt_tokens, completion_tokens, total_tokens, response_time, fallback_reason, cost, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())`,
+      `INSERT INTO usage_logs (user_id, provider, model, prompt_tokens, completion_tokens, total_tokens, response_time, fallback_reason, cost, api_key_id, request_model, neuroswitch_fee, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW())`,
       queryParams
     );
     console.log('logUsage INSERT successful for user_id:', userId); // Log success
@@ -83,6 +86,7 @@ async function deductCreditsAndLog(userId: number, cost: number, provider: strin
 
 router.post('/', verifyToken, async (req: Request, res: Response) => {
   const { prompt, model, image, mode } = req.body;
+  console.log('Received /api/chat request. req.body.model:', model);
   const user = req.user as AuthUser;
   
   if (!user || typeof user.id === 'undefined') {
@@ -108,9 +112,10 @@ router.post('/', verifyToken, async (req: Request, res: Response) => {
         [parseInt(chatIdFromHeader, 10), userId]
       );
       dbHistory = historyResult.rows.map(msg => ({ role: msg.role as ('user' | 'assistant'), content: msg.content }));
-    } catch (dbError) {
-      console.error('[API Chat] Error fetching history from DB:', dbError);
+    } catch (dbError: any) {
+      console.error(`[API Chat] Error fetching history from DB for chat_id ${chatIdFromHeader}, user_id ${userId}. Proceeding with empty history. Error: ${dbError.message}`);
       // Proceed with empty history if DB fetch fails
+      dbHistory = [];
     }
   }
 
@@ -241,43 +246,115 @@ router.post('/', verifyToken, async (req: Request, res: Response) => {
     const totalTokensForLog = tokenUsage?.total_tokens ?? data.tokens ?? undefined;
 
     // --- Cost calculation ---
-    let cost: number | null = null;
-    if (totalTokensForLog !== undefined && data.provider_used) {
-      cost = calculateCost(data.provider_used, totalTokensForLog);
-      // Deduct credits and log transaction (in cents)
-      await deductCreditsAndLog(userId, cost, data.provider_used.toLowerCase(), data.model || '', totalTokensForLog);
+    let llmProviderCost: number | null = null;
+    let neuroSwitchFeeToLog: number | null = 0;
+    let apiKeyIdToLog: number | null = null;
+
+    const fusionRequestModel = req.body.model?.toLowerCase();
+    const neuroSwitchActualProvider = data.provider_used;
+    const neuroSwitchActualModel = data.model;
+    const neuroSwitchFallbackReason = data.fallback_reason;
+
+    if (fusionRequestModel === 'neuroswitch') {
+      neuroSwitchFeeToLog = getNeuroSwitchClassifierFee();
     }
 
-    // Debug log before saving
-    console.log('Saving usage log:', {
+    let byoapiKeyUsedOrAttempted = false;
+    if (fusionRequestModel && fusionRequestModel !== 'neuroswitch') {
+        const headerName = providerHeaderMap[fusionRequestModel];
+        if (headerName && neuroSwitchHeaders[headerName]) {
+            byoapiKeyUsedOrAttempted = true;
+        }
+    } else if (fusionRequestModel === 'neuroswitch') {
+        for (const key in providerHeaderMap) {
+            if (neuroSwitchHeaders[providerHeaderMap[key]]) {
+                byoapiKeyUsedOrAttempted = true;
+                break;
+            }
+        }
+    }
+    
+    if (totalTokensForLog !== undefined && neuroSwitchActualProvider) {
+      if (byoapiKeyUsedOrAttempted && !neuroSwitchFallbackReason) {
+        llmProviderCost = 0;
+        // DETAILED LOGS FOR BYOAPI SUCCESS PATH
+        console.log(`[API Chat] BYOAPI SUCCESS PATH Entered. Provider Used: ${neuroSwitchActualProvider}, Model Used: ${neuroSwitchActualModel}`);
+        
+        const providerForApiKeyLookup = neuroSwitchActualProvider.toLowerCase();
+        console.log(`[API Chat] BYOAPI SUCCESS PATH: providerForApiKeyLookup: '${providerForApiKeyLookup}'`);
+        
+        const pResult = await pool.query('SELECT id, name FROM providers WHERE LOWER(name) = $1', [providerForApiKeyLookup]);
+        console.log('[API Chat] BYOAPI SUCCESS PATH: pResult (providers table query results):', pResult.rows);
+
+        if (pResult.rows.length > 0) {
+            const pid = pResult.rows[0].id;
+            const foundProviderName = pResult.rows[0].name;
+            console.log(`[API Chat] BYOAPI SUCCESS PATH: Found provider_id (pid): ${pid} for provider '${foundProviderName}'`);
+            // Restore original query
+            const keyRes = await pool.query('SELECT id FROM user_external_api_keys WHERE user_id = $1 AND provider_id = $2 AND is_active = TRUE', [userId, pid]);
+            console.log(`[API Chat] BYOAPI SUCCESS PATH: keyRes (user_external_api_keys table query results for userId ${userId}, pid ${pid} WITH is_active = TRUE check):`, keyRes.rows);
+            
+            if (keyRes.rows.length > 0) {
+                apiKeyIdToLog = keyRes.rows[0].id;
+                console.log(`[API Chat] BYOAPI SUCCESS PATH: apiKeyIdToLog successfully set to: ${apiKeyIdToLog}`);
+            } else {
+                console.log(`[API Chat] BYOAPI SUCCESS PATH: No active key found in user_external_api_keys for userId ${userId}, pid ${pid}.`);
+            }
+        } else {
+            console.log(`[API Chat] BYOAPI SUCCESS PATH: Provider '${providerForApiKeyLookup}' not found in providers table.`);
+        }
+      } else {
+        // Internal key was used (either direct or fallback)
+        console.log(`[API Chat] INTERNAL KEY PATH Entered. byoapiKeyUsedOrAttempted: ${byoapiKeyUsedOrAttempted}, neuroSwitchFallbackReason: ${neuroSwitchFallbackReason}, Provider Used: ${neuroSwitchActualProvider}, Model Used: ${neuroSwitchActualModel}`);
+        
+        let providerForCosting = neuroSwitchActualProvider.toLowerCase();
+        let modelForCosting = neuroSwitchActualModel?.toLowerCase();
+
+        // Map provider names and set default models for costing if model is undefined
+        if (providerForCosting === 'gemini') {
+          providerForCosting = 'google'; // Map to pricing table key
+          if (!modelForCosting) modelForCosting = 'gemini-1.0-pro';
+        } else if (providerForCosting === 'claude') {
+          providerForCosting = 'anthropic'; // Map to pricing table key
+          if (!modelForCosting) modelForCosting = 'claude-3.5-sonnet';
+        } else if (providerForCosting === 'openai') {
+          if (!modelForCosting) modelForCosting = 'gpt-4o-mini';
+        }
+        // Add other mappings or defaults as needed
+
+        llmProviderCost = calculateLlmProviderCost(providerForCosting, modelForCosting, promptTokens || 0, completionTokens || 0);
+        console.log(`[API Chat] Internal key used. Provider for costing: ${providerForCosting}, Model for costing: ${modelForCosting}. Calculated LLM Provider Cost: ${llmProviderCost}`);
+        
+        if (llmProviderCost > 0) { 
+          await deductCreditsAndLog(userId, llmProviderCost, neuroSwitchActualProvider.toLowerCase(), modelForCosting || 'unknown_model', totalTokensForLog);
+        }
+      }
+    }
+
+    // Log usage
+    console.log(`[API Chat] FINAL LOGGING PARAMS: neuroSwitchFeeToLog: ${neuroSwitchFeeToLog}, llmProviderCost: ${llmProviderCost}, apiKeyIdToLog: ${apiKeyIdToLog}, requestModel: ${req.body.model}`); 
+    await logUsage(
+      userId,
+      neuroSwitchActualProvider,
+      neuroSwitchActualModel,
       promptTokens,
       completionTokens,
       totalTokensForLog,
       responseTime,
-      cost
-    });
-
-    // Log only if we have some token information to make the log meaningful
-    if (totalTokensForLog !== undefined) {
-      await logUsage(
-        userId,
-        data.provider_used, // This will go into the 'provider' column
-        data.model,         // This will go into the 'model' column
-        promptTokens,
-        completionTokens,
-        totalTokensForLog,
-        responseTime,
-        data.fallback_reason || null,
-        cost // Save cost in dollars in usage_logs
-      );
-    }
+      neuroSwitchFallbackReason,
+      llmProviderCost,
+      apiKeyIdToLog,
+      req.body.model,
+      neuroSwitchFeeToLog
+    );
 
     res.json({
       prompt,
       response: { text: data.response },
-      model: data.model || data.provider_used,
+      model: neuroSwitchActualModel || neuroSwitchActualProvider,
       tokens: data.token_usage || { total_tokens: data.tokens },
-      cost,
+      cost: llmProviderCost,
+      neuroswitch_fee: neuroSwitchFeeToLog,
       timestamp: new Date().toISOString()
     });
 

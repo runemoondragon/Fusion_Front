@@ -10,10 +10,12 @@ CREATE TABLE users (
     avatar_url TEXT,
     is_active BOOLEAN DEFAULT TRUE,
     role VARCHAR(50) DEFAULT 'user',
+    emergency_fallback_tokens_used INTEGER DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     stripe_customer_id VARCHAR(255) UNIQUE
 );
+
 
 -- API keys table
 CREATE TABLE api_keys (
@@ -52,7 +54,8 @@ CREATE TABLE messages (
 CREATE TABLE usage_logs (
     id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
-    api_key_id INTEGER REFERENCES api_keys(id) ON DELETE SET NULL,
+    api_key_id INTEGER REFERENCES user_external_api_keys(id) ON DELETE SET NULL,
+    request_model VARCHAR(255) DEFAULT NULL,
     model VARCHAR(255),
     provider VARCHAR(255),
     prompt_tokens INTEGER DEFAULT 0,

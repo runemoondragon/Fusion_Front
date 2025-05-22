@@ -9,6 +9,7 @@ export interface UserProfile {
     email: string;
     displayName: string | null;
     avatarUrl: string | null;
+    role?: string;
     // Add any other user-specific fields you might need globally
     // For example: role, createdAt, etc.
     // Based on backend/src/routes/userProfile.ts, it also returns createdAt

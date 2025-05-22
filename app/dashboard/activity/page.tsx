@@ -33,11 +33,15 @@ interface ActivityLogEntry {
   timestamp: string;
   provider: string | null;
   model: string | null;
-  app: string | null;
   tokens: number;
   cost?: number | null;
+  neuroswitch_cost?: number;
   responseTime?: number | null;
   finish?: string | null;
+
+  key_source?: 'byoapi' | 'internal' | 'fallback' | string;
+  api_key_name?: string;
+  request_model?: string;
 }
 
 // For API Key list in filter dropdown
@@ -460,26 +464,46 @@ export default function ActivityPage() {
                   <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Provider / Model</th>
                   <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">App/Key Name</th>
                   <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tokens</th>
+                  <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">NeuroSwitch Cost</th>
                   <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cost</th>
                   <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Response Time (ms)</th>
                   <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Details</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {activityLogs.map((log, index) => (
-                  <tr key={index} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{new Date(log.timestamp).toLocaleString()}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
-                        <div>{log.provider || 'N/A'}</div>
-                        <div className="text-xs text-gray-500">{log.model || 'N/A'}</div>
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{log.app || 'N/A'}</td> {/* Placeholder for App */}
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{log.tokens.toLocaleString()}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{log.cost ? `$${log.cost.toFixed(4)}` : 'N/A'}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{typeof log.responseTime === 'number' ? `${log.responseTime} ms` : 'N/A'}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{log.finish || 'N/A'}</td>
-                  </tr>
-                ))}
+                {activityLogs.map((log, index) => {
+                  const appOrKeyNameDisplay = log.api_key_name || 'N/A';
+
+                  const neuroSwitchCostDisplay = typeof log.neuroswitch_cost === 'number' 
+                    ? `$${log.neuroswitch_cost.toFixed(4)}` 
+                    : '$0.0000';
+
+                  const llmProviderCostDisplay = typeof log.cost === 'number' 
+                    ? `$${log.cost.toFixed(4)}` 
+                    : 'N/A';
+
+                  return (
+                    <tr key={index} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{new Date(log.timestamp).toLocaleString()}</td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
+                          <div>{log.provider || 'N/A'}</div>
+                          <div className="text-xs text-gray-500">{log.model || 'N/A'}</div>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{appOrKeyNameDisplay}</td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{log.tokens.toLocaleString()}</td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
+                        {neuroSwitchCostDisplay}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
+                        {llmProviderCostDisplay}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{typeof log.responseTime === 'number' ? `${log.responseTime} ms` : 'N/A'}</td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                        {log.finish || 'N/A'}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

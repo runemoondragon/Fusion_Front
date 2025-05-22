@@ -26,6 +26,7 @@ import pool from './db';
 import http from 'http';
 import modelsRouter from './routes/models';
 import userExternalApiKeysRouter from './routes/userExternalApiKeys';
+import adminRoutes from './routes/adminRoutes';
 
 // Load environment variables
 dotenv.config();
@@ -151,6 +152,9 @@ app.use('/webhooks', btcpayRoutes); // For /webhooks/btcpay (defined inside btcp
 
 // Public routes
 app.use('/api/models', modelsRouter);
+
+// Mount admin routes
+app.use('/api/admin', adminRoutes);
 
 // Serialize/Deserialize User
 passport.serializeUser((user: any, done) => {
@@ -303,7 +307,7 @@ app.post('/auth/email/register', async (req, res) => {
     
     // Create user
     const newUserResult = await pool.query(
-      'INSERT INTO users (email, password_hash, display_name) VALUES ($1, $2, $3) RETURNING id, email, display_name, stripe_customer_id',
+      'INSERT INTO users (email, password_hash, display_name) VALUES ($1, $2, $3) RETURNING id, email, display_name, stripe_customer_id, role',
       [email, hashedPassword, displayName || null] // Store displayName
     );
     const newUser = newUserResult.rows[0];
@@ -314,6 +318,7 @@ app.post('/auth/email/register', async (req, res) => {
       id: newUser.id,
       email: newUser.email,
       name: newUser.display_name, // Use display_name here
+      role: newUser.role, // Added role (assuming RETURNING includes it, or fetch separately)
       stripe_customer_id: newUser.stripe_customer_id
     };
     const token = jwt.sign(
@@ -340,7 +345,7 @@ app.post('/auth/email/login', async (req, res) => {
     }
     
     // Find user - ensure you SELECT display_name and stripe_customer_id
-    const userResult = await pool.query('SELECT id, email, display_name, password_hash, stripe_customer_id FROM users WHERE email = $1', [email]);
+    const userResult = await pool.query('SELECT id, email, display_name, password_hash, role, stripe_customer_id FROM users WHERE email = $1', [email]);
     if (userResult.rows.length === 0) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
@@ -357,6 +362,7 @@ app.post('/auth/email/login', async (req, res) => {
       id: user.id,
       email: user.email,
       name: user.display_name, // Use display_name here
+      role: user.role, // Added role
       stripe_customer_id: user.stripe_customer_id
     };
     const token = jwt.sign(

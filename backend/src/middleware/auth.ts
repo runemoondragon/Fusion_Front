@@ -8,6 +8,7 @@ export interface User {
   id: number;
   email?: string;       // From users table
   name?: string;        // display_name from users table
+  role?: string;        // Added role
   // Add other relevant fields from your 'users' table that might be needed globally
   // For example: role, is_active, etc.
 }
@@ -45,7 +46,7 @@ export const verifyToken = async (req: Request, res: Response, next: NextFunctio
       
       // Fetch fresh user details from DB to ensure up-to-date info and existence
       const userResult = await pool.query(
-        'SELECT id, email, display_name as name FROM users WHERE id = $1 AND is_active = TRUE',
+        'SELECT id, email, display_name as name, role FROM users WHERE id = $1 AND is_active = TRUE',
         [decoded.id]
       );
 
@@ -80,7 +81,7 @@ export const verifyToken = async (req: Request, res: Response, next: NextFunctio
 
       const userId = apiKeyResult.rows[0].user_id;
       const userResult = await pool.query(
-        'SELECT id, email, display_name as name FROM users WHERE id = $1 AND is_active = TRUE',
+        'SELECT id, email, display_name as name, role FROM users WHERE id = $1 AND is_active = TRUE',
         [userId]
       );
 

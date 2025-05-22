@@ -52,7 +52,7 @@ router.get('/', verifyToken, async (req: Request, res: Response) => {
 
   try {
     const result = await pool.query(
-      'SELECT id, email, display_name, avatar_url, created_at FROM users WHERE id = $1',
+      'SELECT id, email, display_name, avatar_url, created_at, role FROM users WHERE id = $1',
       [userId]
     );
 
@@ -66,6 +66,7 @@ router.get('/', verifyToken, async (req: Request, res: Response) => {
         displayName: result.rows[0].display_name,
         avatarUrl: result.rows[0].avatar_url,
         createdAt: result.rows[0].created_at,
+        role: result.rows[0].role,
     };
 
     res.json(userProfile);
