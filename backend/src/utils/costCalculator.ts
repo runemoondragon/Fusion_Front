@@ -1,72 +1,71 @@
 // Cost calculation utility for usage-based billing
 
-// Detailed pricing map (per 1K tokens, in USD)
-// These are representative prices and should be verified and updated regularly.
-const PRICING: Record<string, Record<string, { input: number; output: number }>> = {
-  openai: {
-    "gpt-4-turbo": { input: 0.01, output: 0.03 },
-    "gpt-4": { input: 0.03, output: 0.06 },
-    "gpt-3.5-turbo": { input: 0.0005, output: 0.0015 },
-    "gpt-4o-mini": { input: 0.0005, output: 0.0015 }, // Placeholder, adjust price
-  },
-  claude: { // Renamed from anthropic
-    "claude-3-opus": { input: 0.015, output: 0.075 },
-    "claude-3-sonnet": { input: 0.003, output: 0.015 },
-    "claude-3-haiku": { input: 0.00025, output: 0.00125 },
-    // Add other Claude models as needed
-  },
-  gemini: { // Renamed from google
-    "gemini-1.5-pro": { input: 0.007, output: 0.021 }, // Rates can vary by context window
-    "gemini-1.0-pro": { input: 0.000125, output: 0.000375 },
-    // Add other Gemini models as needed
-  },
-  // Add other providers like Mistral etc. as needed
-};
+import pool from '../db'; // Import the database pool
 
-const DEFAULT_FALLBACK_RATE = { input: 0.002, output: 0.002 }; // A generic fallback if provider/model unknown
+// const PRICING: Record<string, Record<string, { input: number; output: number }>> = { ... }; // This should be removed
+
+const DEFAULT_FALLBACK_RATE = { input: 0.002, output: 0.002 }; // Per 1K tokens
 const NEUROSWITCH_CLASSIFIER_FEE_PER_USE = 0.0001;
 
 /**
- * Calculates the cost for LLM provider usage based on input and output tokens.
- * @param provider The LLM provider (e.g., "openai", "claude").
- * @param model The specific model used (e.g., "gpt-4-turbo", "claude-3-opus").
+ * Calculates the cost for LLM provider usage based on input and output tokens,
+ * fetching rates from the 'models' database table.
+ * @param neuroSwitchProvider The provider string from NeuroSwitch (e.g., "openai", "claude", "gemini").
+ * @param modelIdString The specific model id_string (e.g., "openai/gpt-4o-mini", "anthropic/claude-3-sonnet").
  * @param inputTokens Number of input tokens.
  * @param outputTokens Number of output tokens.
- * @returns The calculated cost, rounded to 6 decimal places, or 0 if pricing is not found.
+ * @returns The calculated cost, rounded to 6 decimal places, or cost based on fallback rate if not found.
  */
-export function calculateLlmProviderCost(
-  provider: string,
-  model: string | undefined,
+export async function calculateLlmProviderCost(
+  neuroSwitchProvider: string,
+  modelIdString: string | undefined,
   inputTokens: number,
   outputTokens: number
-): number {
-  if (!model) {
-    console.warn(`[costCalculator] Model undefined for provider ${provider}. Returning 0 cost.`);
-    return 0;
-  }
-
-  const lowerProvider = provider.toLowerCase();
-  const lowerModel = model.toLowerCase();
-
-  const providerPricing = PRICING[lowerProvider];
-  if (!providerPricing) {
-    console.warn(`[costCalculator] Pricing not found for provider: ${lowerProvider}. Using default fallback rate.`);
-    // Fallback for unknown provider (could use a very generic rate or 0)
-    const cost = ( (inputTokens / 1000) * DEFAULT_FALLBACK_RATE.input ) + ( (outputTokens / 1000) * DEFAULT_FALLBACK_RATE.output );
-    return parseFloat(cost.toFixed(6)); // Round to 6 decimal places
-  }
-
-  const modelRates = providerPricing[lowerModel] || providerPricing[model]; // Try lowercase then original, or just expect normalized keys
-  if (!modelRates) {
-    console.warn(`[costCalculator] Pricing not found for model: ${lowerModel} (provider: ${lowerProvider}). Using default fallback rate for provider.`);
-    // Fallback for unknown model within a known provider (could use a default for that provider or 0)
-    // For simplicity, using the general default fallback here, but could be more specific
+): Promise<number> {
+  if (!modelIdString) {
+    console.warn(`[costCalculator] Model ID string is undefined for provider ${neuroSwitchProvider}. Using default fallback rate.`);
     const cost = ( (inputTokens / 1000) * DEFAULT_FALLBACK_RATE.input ) + ( (outputTokens / 1000) * DEFAULT_FALLBACK_RATE.output );
     return parseFloat(cost.toFixed(6));
   }
 
-  const cost = ( (inputTokens / 1000) * modelRates.input ) + ( (outputTokens / 1000) * modelRates.output );
-  return parseFloat(cost.toFixed(6)); // Round to 6 decimal places for precision
+  let dbProvider = neuroSwitchProvider.toLowerCase();
+  if (dbProvider === 'gemini') {
+    dbProvider = 'google';
+  } else if (dbProvider === 'claude') {
+    dbProvider = 'anthropic';
+  }
+  // 'openai' already matches
+
+  try {
+    const result = await pool.query(
+      'SELECT input_cost_per_million_tokens, output_cost_per_million_tokens FROM models WHERE LOWER(provider) = LOWER($1) AND LOWER(id_string) = LOWER($2)',
+      [dbProvider, modelIdString.toLowerCase()]
+    );
+
+    if (result.rows.length > 0) {
+      const dbRow = result.rows[0];
+      const inputRatePer1k = parseFloat(dbRow.input_cost_per_million_tokens) / 1000;
+      const outputRatePer1k = parseFloat(dbRow.output_cost_per_million_tokens) / 1000;
+      
+      if (isNaN(inputRatePer1k) || isNaN(outputRatePer1k)) {
+        console.warn(`[costCalculator] Invalid rates in DB for ${dbProvider}/${modelIdString}. input: ${dbRow.input_cost_per_million_tokens}, output: ${dbRow.output_cost_per_million_tokens}. Using fallback.`);
+        const fallbackCost = ( (inputTokens / 1000) * DEFAULT_FALLBACK_RATE.input ) + ( (outputTokens / 1000) * DEFAULT_FALLBACK_RATE.output );
+        return parseFloat(fallbackCost.toFixed(6));
+      }
+
+      const cost = ( (inputTokens / 1000) * inputRatePer1k ) + ( (outputTokens / 1000) * outputRatePer1k );
+      return parseFloat(cost.toFixed(6));
+    } else {
+      console.warn(`[costCalculator] Pricing not found in DB for provider: ${dbProvider}, model: ${modelIdString}. Using default fallback rate.`);
+      const fallbackCost = ( (inputTokens / 1000) * DEFAULT_FALLBACK_RATE.input ) + ( (outputTokens / 1000) * DEFAULT_FALLBACK_RATE.output );
+      return parseFloat(fallbackCost.toFixed(6));
+    }
+  } catch (error) {
+    console.error(`[costCalculator] DB error fetching pricing for ${dbProvider}/${modelIdString}:`, error);
+    console.warn(`[costCalculator] Using default fallback rate due to DB error.`);
+    const fallbackCost = ( (inputTokens / 1000) * DEFAULT_FALLBACK_RATE.input ) + ( (outputTokens / 1000) * DEFAULT_FALLBACK_RATE.output );
+    return parseFloat(fallbackCost.toFixed(6));
+  }
 }
 
 /**

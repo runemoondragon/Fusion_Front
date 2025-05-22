@@ -249,6 +249,7 @@ router.post('/', verifyToken, async (req: Request, res: Response) => {
     let llmProviderCost: number | null = null;
     let neuroSwitchFeeToLog: number | null = 0;
     let apiKeyIdToLog: number | null = null;
+    let modelForCosting: string | undefined;
 
     const fusionRequestModel = req.body.model?.toLowerCase();
     const neuroSwitchActualProvider = data.provider_used;
@@ -307,24 +308,33 @@ router.post('/', verifyToken, async (req: Request, res: Response) => {
         // Internal key was used (either direct or fallback)
         console.log(`[API Chat] INTERNAL KEY PATH Entered. byoapiKeyUsedOrAttempted: ${byoapiKeyUsedOrAttempted}, neuroSwitchFallbackReason: ${neuroSwitchFallbackReason}, Provider Used: ${neuroSwitchActualProvider}, Model Used: ${neuroSwitchActualModel}`);
         
-        const providerForCosting = neuroSwitchActualProvider.toLowerCase(); // No more mapping needed here
-        let modelForCosting = neuroSwitchActualModel?.toLowerCase();
+        const providerForCosting = neuroSwitchActualProvider.toLowerCase();
+        modelForCosting = neuroSwitchActualModel?.toLowerCase();
 
-        // Set default models for costing if model is undefined
-        if (providerForCosting === 'gemini') {
-          if (!modelForCosting) modelForCosting = 'gemini-1.0-pro';
-        } else if (providerForCosting === 'claude') {
-          if (!modelForCosting) modelForCosting = 'claude-3.5-sonnet'; // Your desired default
-        } else if (providerForCosting === 'openai') {
-          if (!modelForCosting) modelForCosting = 'gpt-4o-mini'; // Your desired default
+        // Set default models (id_strings) for costing if model is undefined
+        if (!modelForCosting) {
+          if (providerForCosting === 'gemini') {
+            modelForCosting = 'google//gemini-flash-1.5';
+          } else if (providerForCosting === 'claude') {
+            modelForCosting = 'anthropic/claude-3.5-sonnet'; 
+          } else if (providerForCosting === 'openai') {
+            modelForCosting = 'openai/gpt-4o-mini';
+          }
+          console.log(`[API Chat] INTERNAL KEY PATH: neuroSwitchActualModel was undefined. Set modelForCosting to default: ${modelForCosting} for provider ${providerForCosting}`);
         }
-        // Add other mappings or defaults as needed for other providers if any
 
-        llmProviderCost = calculateLlmProviderCost(providerForCosting, modelForCosting, promptTokens || 0, completionTokens || 0);
-        console.log(`[API Chat] Internal key used. Provider for costing: ${providerForCosting}, Model for costing: ${modelForCosting}. Calculated LLM Provider Cost: ${llmProviderCost}`);
-        
-        if (llmProviderCost > 0) { 
-          await deductCreditsAndLog(userId, llmProviderCost, neuroSwitchActualProvider.toLowerCase(), modelForCosting || 'unknown_model', totalTokensForLog);
+        if (totalTokensForLog !== undefined) {
+          llmProviderCost = await calculateLlmProviderCost(
+            providerForCosting, 
+            modelForCosting, 
+            promptTokens || 0,
+            completionTokens || 0
+          );
+          console.log(`[API Chat] Internal key used. Provider for costing: ${providerForCosting}, Model for costing: ${modelForCosting}. Calculated LLM Provider Cost: ${llmProviderCost}`);
+          
+          if (llmProviderCost > 0) { 
+            await deductCreditsAndLog(userId, llmProviderCost, neuroSwitchActualProvider.toLowerCase(), modelForCosting || 'unknown_model', totalTokensForLog);
+          }
         }
       }
     }
