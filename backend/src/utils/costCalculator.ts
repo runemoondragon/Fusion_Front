@@ -6,19 +6,19 @@ const PRICING: Record<string, Record<string, { input: number; output: number }>>
   openai: {
     "gpt-4-turbo": { input: 0.01, output: 0.03 },
     "gpt-4": { input: 0.03, output: 0.06 },
-    "gpt-3.5-turbo": { input: 0.0005, output: 0.0015 }, // Common model like gpt-3.5-turbo-0125
-    // Add other OpenAI models as needed
+    "gpt-3.5-turbo": { input: 0.0005, output: 0.0015 },
+    "gpt-4o-mini": { input: 0.0005, output: 0.0015 }, // Placeholder, adjust price
   },
-  anthropic: {
+  claude: { // Renamed from anthropic
     "claude-3-opus": { input: 0.015, output: 0.075 },
-    "claude-3.5-sonnet": { input: 0.003, output: 0.015 },
+    "claude-3-sonnet": { input: 0.003, output: 0.015 },
     "claude-3-haiku": { input: 0.00025, output: 0.00125 },
-    // Add other Anthropic models as needed
+    // Add other Claude models as needed
   },
-  google: { // Changed from 'gemini' to 'google' for provider name consistency
+  gemini: { // Renamed from google
     "gemini-1.5-pro": { input: 0.007, output: 0.021 }, // Rates can vary by context window
     "gemini-1.0-pro": { input: 0.000125, output: 0.000375 },
-    // Add other Google models as needed
+    // Add other Gemini models as needed
   },
   // Add other providers like Mistral etc. as needed
 };
@@ -28,7 +28,7 @@ const NEUROSWITCH_CLASSIFIER_FEE_PER_USE = 0.0001;
 
 /**
  * Calculates the cost for LLM provider usage based on input and output tokens.
- * @param provider The LLM provider (e.g., "openai", "anthropic").
+ * @param provider The LLM provider (e.g., "openai", "claude").
  * @param model The specific model used (e.g., "gpt-4-turbo", "claude-3-opus").
  * @param inputTokens Number of input tokens.
  * @param outputTokens Number of output tokens.

@@ -145,7 +145,7 @@ router.post('/', verifyToken, async (req: Request, res: Response) => {
     const userSelectedModel = model?.toLowerCase();
     const providerHeaderMap: Record<string, string> = {
       'openai': 'X-OpenAI-API-Key',
-      'anthropic': 'X-Claude-API-Key',
+      'claude': 'X-Claude-API-Key',
       'gemini': 'X-Gemini-API-Key'
     };
 
@@ -189,7 +189,7 @@ router.post('/', verifyToken, async (req: Request, res: Response) => {
     } else {
       // Scenario 2: User selected NeuroSwitch (or no model specified, defaulting to NeuroSwitch)
       payloadToNeuroSwitch.requested_provider = 'neuroswitch';
-      const targetProvidersForNeuroSwitch = ['openai', 'anthropic', 'gemini'];
+      const targetProvidersForNeuroSwitch = ['openai', 'claude', 'gemini'];
       try {
         const activeKeysResult = await pool.query(
           `SELECT p.name as provider_db_name, ueak.encrypted_api_key
@@ -216,7 +216,7 @@ router.post('/', verifyToken, async (req: Request, res: Response) => {
             }
           }
         } else {
-          console.log(`[API Chat] No active BYOAPI keys found for OpenAI, Anthropic, or Gemini for NeuroSwitch routing. User ID: ${userId}`);
+          console.log(`[API Chat] No active BYOAPI keys found for OpenAI, claude, or Gemini for NeuroSwitch routing. User ID: ${userId}`);
         }
       } catch (dbError) {
         console.error('[API Chat] DB error fetching multiple keys for NeuroSwitch BYOAPI:', dbError);
@@ -307,20 +307,18 @@ router.post('/', verifyToken, async (req: Request, res: Response) => {
         // Internal key was used (either direct or fallback)
         console.log(`[API Chat] INTERNAL KEY PATH Entered. byoapiKeyUsedOrAttempted: ${byoapiKeyUsedOrAttempted}, neuroSwitchFallbackReason: ${neuroSwitchFallbackReason}, Provider Used: ${neuroSwitchActualProvider}, Model Used: ${neuroSwitchActualModel}`);
         
-        let providerForCosting = neuroSwitchActualProvider.toLowerCase();
+        const providerForCosting = neuroSwitchActualProvider.toLowerCase(); // No more mapping needed here
         let modelForCosting = neuroSwitchActualModel?.toLowerCase();
 
-        // Map provider names and set default models for costing if model is undefined
+        // Set default models for costing if model is undefined
         if (providerForCosting === 'gemini') {
-          providerForCosting = 'google'; // Map to pricing table key
           if (!modelForCosting) modelForCosting = 'gemini-1.0-pro';
         } else if (providerForCosting === 'claude') {
-          providerForCosting = 'anthropic'; // Map to pricing table key
-          if (!modelForCosting) modelForCosting = 'claude-3.5-sonnet';
+          if (!modelForCosting) modelForCosting = 'claude-3.5-sonnet'; // Your desired default
         } else if (providerForCosting === 'openai') {
-          if (!modelForCosting) modelForCosting = 'gpt-4o-mini';
+          if (!modelForCosting) modelForCosting = 'gpt-4o-mini'; // Your desired default
         }
-        // Add other mappings or defaults as needed
+        // Add other mappings or defaults as needed for other providers if any
 
         llmProviderCost = calculateLlmProviderCost(providerForCosting, modelForCosting, promptTokens || 0, completionTokens || 0);
         console.log(`[API Chat] Internal key used. Provider for costing: ${providerForCosting}, Model for costing: ${modelForCosting}. Calculated LLM Provider Cost: ${llmProviderCost}`);

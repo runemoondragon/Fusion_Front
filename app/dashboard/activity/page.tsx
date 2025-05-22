@@ -33,7 +33,8 @@ interface ActivityLogEntry {
   timestamp: string;
   provider: string | null;
   model: string | null;
-  tokens: number;
+  prompt_tokens: number;
+  completion_tokens: number;
   cost?: number | null;
   neuroswitch_cost?: number;
   responseTime?: number | null;
@@ -42,6 +43,7 @@ interface ActivityLogEntry {
   key_source?: 'byoapi' | 'internal' | 'fallback' | string;
   api_key_name?: string;
   request_model?: string;
+  usage_detail_label: string;
 }
 
 // For API Key list in filter dropdown
@@ -463,7 +465,7 @@ export default function ActivityPage() {
                   <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Timestamp</th>
                   <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Provider / Model</th>
                   <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">App/Key Name</th>
-                  <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tokens</th>
+                  <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tokens (in/out)</th>
                   <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">NeuroSwitch Cost</th>
                   <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cost</th>
                   <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Response Time (ms)</th>
@@ -490,7 +492,9 @@ export default function ActivityPage() {
                           <div className="text-xs text-gray-500">{log.model || 'N/A'}</div>
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{appOrKeyNameDisplay}</td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{log.tokens.toLocaleString()}</td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
+                        {log.prompt_tokens.toLocaleString()} / {log.completion_tokens.toLocaleString()}
+                      </td>
                       <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
                         {neuroSwitchCostDisplay}
                       </td>
@@ -499,7 +503,7 @@ export default function ActivityPage() {
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{typeof log.responseTime === 'number' ? `${log.responseTime} ms` : 'N/A'}</td>
                       <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                        {log.finish || 'N/A'}
+                        {log.usage_detail_label}
                       </td>
                     </tr>
                   );
