@@ -61,7 +61,8 @@ CREATE TABLE usage_logs (
     prompt_tokens INTEGER DEFAULT 0,
     completion_tokens INTEGER DEFAULT 0,
     total_tokens INTEGER DEFAULT 0,
-    cost NUMERIC(10,4) DEFAULT 0.0000,
+    cost NUMERIC(10,6) DEFAULT 0.000000,
+    neuroswitch_fee NUMERIC(10,4) DEFAULT 0.0000,
     fallback_reason TEXT,
     response_time INTEGER,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP

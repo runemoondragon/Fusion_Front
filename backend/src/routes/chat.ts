@@ -104,11 +104,19 @@ router.post('/', verifyToken, async (req: Request, res: Response) => {
     content: string;
   }
 
-  let dbHistory: HistoryMessage[] = [];
-  if (chatIdFromHeader) {
-    try {
-      const historyResult = await pool.query(
-        `SELECT role, content FROM messages WHERE chat_id = $1 AND user_id = $2 ORDER BY timestamp ASC`,
+  const isProd = process.env.NODE_ENV === 'production';
+
+let dbHistory: HistoryMessage[] = [];
+
+if (isProd && chatIdFromHeader) {
+  try {
+    const historyResult = await pool.query(
+      `
+      SELECT m.role, m.content
+      FROM messages m
+      INNER JOIN chats c ON m.chat_id = c.id
+      WHERE m.chat_id = $1 AND c.user_id = $2
+      ORDER BY m.timestamp ASC`,
         [parseInt(chatIdFromHeader, 10), userId]
       );
       dbHistory = historyResult.rows.map(msg => ({ role: msg.role as ('user' | 'assistant'), content: msg.content }));
@@ -318,7 +326,7 @@ router.post('/', verifyToken, async (req: Request, res: Response) => {
           } else if (providerForCosting === 'claude') {
             modelForCosting = 'anthropic/claude-3.5-sonnet'; 
           } else if (providerForCosting === 'openai') {
-            modelForCosting = 'openai/gpt-4o-mini';
+            modelForCosting = 'openai/gpt-4.1';
           }
           console.log(`[API Chat] INTERNAL KEY PATH: neuroSwitchActualModel was undefined. Set modelForCosting to default: ${modelForCosting} for provider ${providerForCosting}`);
         }
@@ -332,19 +340,27 @@ router.post('/', verifyToken, async (req: Request, res: Response) => {
           );
           console.log(`[API Chat] Internal key used. Provider for costing: ${providerForCosting}, Model for costing: ${modelForCosting}. Calculated LLM Provider Cost: ${llmProviderCost}`);
           
-          if (llmProviderCost > 0) { 
-            await deductCreditsAndLog(userId, llmProviderCost, neuroSwitchActualProvider.toLowerCase(), modelForCosting || 'unknown_model', totalTokensForLog);
+          const totalCostToDeduct = (llmProviderCost || 0) + (neuroSwitchFeeToLog || 0);
+          console.log(`[API Chat] Total cost to deduct (LLM + NeuroSwitch Fee): ${totalCostToDeduct}`);
+
+          if (totalCostToDeduct > 0) { 
+            await deductCreditsAndLog(userId, totalCostToDeduct, neuroSwitchActualProvider.toLowerCase(), modelForCosting || 'unknown_model', totalTokensForLog);
           }
         }
       }
     }
 
     // Log usage
-    console.log(`[API Chat] FINAL LOGGING PARAMS: neuroSwitchFeeToLog: ${neuroSwitchFeeToLog}, llmProviderCost: ${llmProviderCost}, apiKeyIdToLog: ${apiKeyIdToLog}, requestModel: ${req.body.model}`); 
+    // Ensure neuroSwitchActualModel is used for logging if BYOAPI was successful, otherwise modelForCosting for internal.
+    const modelLoggedToDb = (byoapiKeyUsedOrAttempted && !neuroSwitchFallbackReason && neuroSwitchActualModel) 
+                            ? neuroSwitchActualModel 
+                            : modelForCosting || neuroSwitchActualModel; // Fallback chain
+
+    console.log(`[API Chat] FINAL LOGGING PARAMS: neuroSwitchFeeToLog: ${neuroSwitchFeeToLog}, llmProviderCost: ${llmProviderCost}, apiKeyIdToLog: ${apiKeyIdToLog}, requestModel: ${req.body.model}, modelLoggedToDb: ${modelLoggedToDb}`); 
     await logUsage(
       userId,
       neuroSwitchActualProvider,
-      neuroSwitchActualModel,
+      modelLoggedToDb || 'undefined', // Ensure we log something for the model column
       promptTokens,
       completionTokens,
       totalTokensForLog,
