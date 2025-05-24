@@ -1,5 +1,6 @@
 import React from 'react';
 import { ModelFilters } from '../../types/models';
+import { Switch } from '@headlessui/react';
 
 interface ModelsSidebarProps {
   filters: ModelFilters;
@@ -59,6 +60,7 @@ const defaultFilters: ModelFilters = {
   series: [],
   categories: [],
   parameters: [],
+  showActiveOnly: false,
 };
 
 const ModelsSidebar: React.FC<ModelsSidebarProps> = ({ filters, onFiltersChange }) => {
@@ -83,6 +85,29 @@ const ModelsSidebar: React.FC<ModelsSidebarProps> = ({ filters, onFiltersChange 
       <h2 className="text-xl font-semibold text-gray-800 mb-5 pb-3 border-b border-gray-200">
         Filters
       </h2>
+
+      {/* Show Active Only Toggle */}
+      <div className="mb-6 pb-4 border-b border-gray-100">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium text-gray-900">Show only available models</span>
+          <Switch
+            checked={filters.showActiveOnly}
+            onChange={(value) => onFiltersChange({ ...filters, showActiveOnly: value })}
+            className={`${filters.showActiveOnly ? 'bg-indigo-600' : 'bg-gray-200'}
+              relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent 
+              transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 
+              focus:ring-indigo-500 focus:ring-offset-2`}
+          >
+            <span className="sr-only">Show only available models</span>
+            <span
+              aria-hidden="true"
+              className={`${filters.showActiveOnly ? 'translate-x-5' : 'translate-x-0'}
+                pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow 
+                ring-0 transition duration-200 ease-in-out`}
+            />
+          </Switch>
+        </div>
+      </div>
 
       {/* Context Length Slider */}
       <div className="mb-8">

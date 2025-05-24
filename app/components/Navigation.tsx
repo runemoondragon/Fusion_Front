@@ -116,6 +116,10 @@ export default function Navigation() {
         <div className="flex items-center">
           {/* Common Links (Visible to all, before login/user menu) */}
           <div className="hidden md:flex items-center space-x-6 mr-6">
+              {/* Conditional Admin Link */}
+              {!isLoadingUser && user && user.role === 'admin' && (
+                <Link href="/admin" className="text-sm font-medium text-neutral-600 hover:text-orange-600">Admin</Link>
+              )}
               <Link href="/chat" className="text-sm font-medium text-neutral-600 hover:text-orange-600">Chat</Link>
               {/* Add other common links like Docs, Pricing here if needed */}
           </div>

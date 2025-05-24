@@ -1,5 +1,5 @@
 -- Drop old tables if they exist (clean slate)
-DROP TABLE IF EXISTS user_external_api_keys;
+DROP TABLE IF EXISTS admin_actions_logs;
 
 -- Users table
 CREATE TABLE users (
@@ -259,4 +259,24 @@ CREATE TRIGGER update_user_external_api_keys_updated_at
 
 -- Indexes for user_external_api_keys
 CREATE INDEX IF NOT EXISTS idx_ueak_user_id ON user_external_api_keys(user_id);
-CREATE INDEX IF NOT EXISTS idx_ueak_provider_id ON user_external_api_keys(provider_id); 
+CREATE INDEX IF NOT EXISTS idx_ueak_provider_id ON user_external_api_keys(provider_id);
+
+-- Table for logging actions performed by administrators
+CREATE TABLE admin_actions_logs (
+    id SERIAL PRIMARY KEY,
+    admin_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL, -- User who performed the action
+    action_type VARCHAR(255) NOT NULL,
+    target_entity_type VARCHAR(100),
+    target_entity_id VARCHAR(255),
+    details JSONB,
+    summary TEXT,
+    ip_address VARCHAR(100),
+    timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_admin_actions_logs_admin_user_id ON admin_actions_logs(admin_user_id);
+CREATE INDEX idx_admin_actions_logs_action_type ON admin_actions_logs(action_type);
+CREATE INDEX idx_admin_actions_logs_target_entity_id ON admin_actions_logs(target_entity_id);
+CREATE INDEX idx_admin_actions_logs_timestamp ON admin_actions_logs(timestamp DESC);
+
+-- Consider adding other tables like feature_flags or platform_settings later as needed 

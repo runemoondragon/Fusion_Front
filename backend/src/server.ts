@@ -26,7 +26,8 @@ import pool from './db';
 import http from 'http';
 import modelsRouter from './routes/models';
 import userExternalApiKeysRouter from './routes/userExternalApiKeys';
-import adminRoutes from './routes/adminRoutes';
+import adminApiRouter from './routes/adminApi/index';
+import { requireAdminRole } from './middleware/adminAuth';
 
 // Load environment variables
 dotenv.config();
@@ -154,7 +155,7 @@ app.use('/webhooks', btcpayRoutes); // For /webhooks/btcpay (defined inside btcp
 app.use('/api/models', modelsRouter);
 
 // Mount admin routes
-app.use('/api/admin', adminRoutes);
+app.use('/api/admin', verifyToken, requireAdminRole, adminApiRouter);
 
 // Serialize/Deserialize User
 passport.serializeUser((user: any, done) => {

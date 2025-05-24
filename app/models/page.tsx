@@ -16,6 +16,7 @@ export default function ModelsPage() {
     features: [],
     contextRange: [4000, 2000000],
     priceRange: [0, 10],
+    showActiveOnly: false,
   });
 
   useEffect(() => {
@@ -68,6 +69,12 @@ export default function ModelsPage() {
         return false;
       }
     }
+
+    // Show active only filter
+    if (filters.showActiveOnly && !model.is_active) {
+      return false;
+    }
+
     return true;
   });
 

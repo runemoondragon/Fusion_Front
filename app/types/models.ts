@@ -11,6 +11,7 @@ export interface Model {
   supports_vision: boolean;
   description?: string;
   release_date?: string;
+  is_active: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -20,6 +21,7 @@ export interface ModelFilters {
   features: string[];
   contextRange?: [number, number]; // [min, max] tokens
   priceRange?: [number, number];   // [min, max] dollars
+  showActiveOnly: boolean;
   modalities?: string[];
   series?: string[];
   categories?: string[];
