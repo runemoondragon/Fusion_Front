@@ -131,10 +131,10 @@ router.get('/activity', verifyToken, async (req: Request, res: Response) => {
 
     const activity: UserActivityLog[] = activityResult.rows.map(row => {
       const rtString = row.response_time_text;
-      const mappedResponseTime = (rtString !== null && typeof rtString !== 'undefined' && !isNaN(parseFloat(rtString)))
-        ? Math.round(parseFloat(rtString) * 1000)
+      const mappedResponseTime = (rtString !== null && typeof rtString !== 'undefined' && !isNaN(parseFloat(rtString))) 
+        ? Math.round(parseFloat(rtString) * 1000) 
         : null;
-
+      
       const llmProviderCost = row.llm_provider_cost ? parseFloat(row.llm_provider_cost) : 0;
       
       // Use the neuroswitch_fee directly from the database
@@ -180,7 +180,7 @@ router.get('/activity', verifyToken, async (req: Request, res: Response) => {
           usageDetailLabel = 'Internal API only';
         }
       }
-      
+
       return {
         timestamp: row.timestamp.toISOString(),
         provider: row.provider,

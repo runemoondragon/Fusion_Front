@@ -485,12 +485,12 @@ export default function ActivityPage() {
                     : 'N/A';
 
                   return (
-                    <tr key={index} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{new Date(log.timestamp).toLocaleString()}</td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
-                          <div>{log.provider || 'N/A'}</div>
-                          <div className="text-xs text-gray-500">{log.model || 'N/A'}</div>
-                      </td>
+                  <tr key={index} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{new Date(log.timestamp).toLocaleString()}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
+                        <div>{log.provider || 'N/A'}</div>
+                        <div className="text-xs text-gray-500">{log.model || 'N/A'}</div>
+                    </td>
                       <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{appOrKeyNameDisplay}</td>
                       <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
                         {log.prompt_tokens.toLocaleString()} / {log.completion_tokens.toLocaleString()}
@@ -501,11 +501,11 @@ export default function ActivityPage() {
                       <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
                         {llmProviderCostDisplay}
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{typeof log.responseTime === 'number' ? `${log.responseTime} ms` : 'N/A'}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{typeof log.responseTime === 'number' ? `${log.responseTime} ms` : 'N/A'}</td>
                       <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
                         {log.usage_detail_label}
                       </td>
-                    </tr>
+                  </tr>
                   );
                 })}
               </tbody>

@@ -259,7 +259,7 @@ CREATE TRIGGER update_user_external_api_keys_updated_at
 
 -- Indexes for user_external_api_keys
 CREATE INDEX IF NOT EXISTS idx_ueak_user_id ON user_external_api_keys(user_id);
-CREATE INDEX IF NOT EXISTS idx_ueak_provider_id ON user_external_api_keys(provider_id);
+CREATE INDEX IF NOT EXISTS idx_ueak_provider_id ON user_external_api_keys(provider_id); 
 
 -- Table for logging actions performed by administrators
 CREATE TABLE admin_actions_logs (

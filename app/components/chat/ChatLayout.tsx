@@ -5,7 +5,7 @@ import axios from 'axios'
 import { usePathname, useRouter } from 'next/navigation'
 import ChatSidebar from './ChatSidebar'
 import ChatWindow from './ChatWindow'
-import { UserCircle, Settings2, LogOut, User as UserIcon } from 'lucide-react'
+import { UserCircle, Settings2, LogOut, User as UserIcon, ChevronDown, ChevronRight } from 'lucide-react'
 import { useUser } from '../../contexts/UserContext'
 import AuthModal from '../auth/AuthModal'
 
@@ -18,6 +18,15 @@ interface ChatSession {
   created_at: string; // ISO date string
   updated_at: string; // ISO date string
   last_message_at: string; // ISO date string
+}
+
+// Define the structure for AI models fetched from the API
+interface AiModel {
+  id: string; // e.g., "gpt-4o", "claude-3-haiku", "openai" (for provider default)
+  name: string; // e.g., "GPT-4o", "Claude 3 Haiku", "OpenAI (Default)"
+  provider: string; // e.g., "openai", "claude", "gemini"
+  is_active: boolean;
+  // is_default could be a backend property, or we derive it
 }
 
 interface ChatLayoutProps {
@@ -36,15 +45,23 @@ const ChatLayout: React.FC<ChatLayoutProps> = () => {
   const getDefaultModel = () => {
     if (typeof window !== 'undefined') {
         const savedModel = localStorage.getItem('userDefaultModel');
-        const validModels = ['neuroswitch', 'openai', 'claude', 'gemini'];
-        if (savedModel && validModels.includes(savedModel)) {
+        // Valid saved models can be "neuroswitch" or provider IDs like "openai"
+        // Specific model IDs are not saved as the "global default" here.
+        const validProviderDefaults = ['neuroswitch', 'openai', 'claude', 'gemini'];
+        if (savedModel && validProviderDefaults.includes(savedModel)) {
             return savedModel;
         }
     }
-    return 'neuroswitch'; // Default
+    return 'neuroswitch'; // Default overall
   };
   const [selectedModel, setSelectedModel] = useState<string>(getDefaultModel());
   const [neuroStatus, setNeuroStatus] = useState<'green' | 'orange' | ''>( '' );
+
+  // New state for model selection dropdown
+  const [allModels, setAllModels] = useState<AiModel[]>([]);
+  const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
+  const [expandedProvider, setExpandedProvider] = useState<string | null>(null); // To track which provider's list is open
+  const modelDropdownRef = useRef<HTMLDivElement>(null);
 
   // Auth related state and hooks from Navigation.tsx
   const { user, isLoadingUser, clearUser } = useUser();
@@ -67,12 +84,17 @@ const ChatLayout: React.FC<ChatLayoutProps> = () => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsDropdownOpen(false);
       }
+      // Close model dropdown if click is outside
+      if (modelDropdownRef.current && !modelDropdownRef.current.contains(event.target as Node)) {
+        setIsModelDropdownOpen(false);
+        setExpandedProvider(null); // Also collapse any open sub-menus
+      }
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [dropdownRef]);
+  }, [dropdownRef, modelDropdownRef]);
 
   const handleLogout = () => {
     clearUser();
@@ -148,6 +170,27 @@ const ChatLayout: React.FC<ChatLayoutProps> = () => {
   }
   }, [authStatus, isLoadingUser]) // Depend on authStatus and isLoadingUser
 
+  // Effect to fetch AI models
+  useEffect(() => {
+    const fetchModels = async () => {
+      try {
+        // Assuming /api/models does not strictly require auth token, but sending if available
+        const token = localStorage.getItem('auth_token');
+        const headers: Record<string, string> = {};
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+        const response = await axios.get<AiModel[]>('/api/models?is_active=true', { headers });
+        // Filter for active models, though API might already do this
+        setAllModels(response.data.filter(model => model.is_active));
+      } catch (error) {
+        console.error("Error fetching AI models:", error);
+        // Optionally set an error state to inform the user
+      }
+    };
+    fetchModels();
+  }, []);
+
   const handleNewChat = () => {
     if (!authStatus) {
       openLoginModal();
@@ -155,6 +198,7 @@ const ChatLayout: React.FC<ChatLayoutProps> = () => {
     }
     console.log('Creating new chat session (client-side)...')
     setActiveChatId(null)
+    setSelectedModel(getDefaultModel()); // Reset to default model for new chat
   }
 
   const handleSelectChat = (chatId: number) => {
@@ -166,9 +210,11 @@ const ChatLayout: React.FC<ChatLayoutProps> = () => {
     setActiveChatId(chatId)
     const selectedChat = chatList.find(chat => chat.id === chatId);
     if (selectedChat && selectedChat.ui_selected_provider) {
+      // ui_selected_provider can be a specific model ID like "gpt-4o"
+      // or a provider default like "openai". setSelectedModel handles this.
       setSelectedModel(selectedChat.ui_selected_provider);
     } else {
-      setSelectedModel(getDefaultModel());
+      setSelectedModel(getDefaultModel()); // Fallback to global default if not set on chat
     }
   }
 
@@ -176,6 +222,15 @@ const ChatLayout: React.FC<ChatLayoutProps> = () => {
     console.log('ChatLayout: New chat confirmed by ChatWindow:', newlyCreatedChat)
     setChatList(prevChatList => [newlyCreatedChat, ...prevChatList])
     setActiveChatId(newlyCreatedChat.id)
+    // The newlyCreatedChat.ui_selected_provider should reflect what was used.
+    // If it's a specific model, setSelectedModel will take it.
+    // If it's a provider (e.g., "openai"), it will also be correctly set.
+    if (newlyCreatedChat.ui_selected_provider) {
+        setSelectedModel(newlyCreatedChat.ui_selected_provider);
+    }
+    // No, onChatCreated doesn't need to set the model itself here,
+    // ChatWindow sends the model that was used. The new chat session will have it.
+    // ChatLayout's selectedModel will be updated if handleSelectChat is called on this new chat.
   }
 
   const handleUpdateChatTitle = async (chatId: number, newTitle: string) => {
@@ -196,7 +251,7 @@ const ChatLayout: React.FC<ChatLayoutProps> = () => {
       if (response.data && response.data.chat) {
         setChatList(prevChatList =>
           prevChatList.map(chat =>
-            chat.id === chatId ? { ...chat, title: response.data.chat.title, ui_selected_provider: selectedModel } : chat
+            chat.id === chatId ? { ...chat, title: response.data.chat.title, ui_selected_provider: response.data.chat.ui_selected_provider || selectedModel } : chat
           )
         );
       } else {
@@ -245,6 +300,84 @@ const ChatLayout: React.FC<ChatLayoutProps> = () => {
     provider: chat.ui_selected_provider
   }))
 
+  // Helper function to group models by provider
+  const getGroupedModels = () => {
+    // Keys used for the main UI groups in the dropdown
+    const uiGroupKeys = {
+      openai: 'openai',
+      claude: 'claude',
+      gemini: 'gemini'
+    };
+
+    const grouped: Record<string, AiModel[]> = {
+      [uiGroupKeys.openai]: [],
+      [uiGroupKeys.claude]: [],
+      [uiGroupKeys.gemini]: []
+    };
+
+    allModels.forEach(model => {
+      // Normalize API provider name to lowercase for robust comparison and matching
+      const apiProviderNormalized = model.provider.toLowerCase();
+
+      if (apiProviderNormalized === 'openai') {
+        grouped[uiGroupKeys.openai].push(model);
+      } else if (apiProviderNormalized === 'anthropic') {
+        // Models from "Anthropic" are grouped under the "Claude" UI category
+        grouped[uiGroupKeys.claude].push(model);
+      } else if (apiProviderNormalized === 'google' || apiProviderNormalized.startsWith('google ')) {
+        // Models from "Google" or sub-brands like "Google AI Studio", "Google Vertex" 
+        // are grouped under the "Gemini" UI category
+        grouped[uiGroupKeys.gemini].push(model);
+      }
+      // Models from providers not matching these conditions will not be included in these specific UI groups.
+    });
+    return grouped;
+  };
+  
+  const groupedModels = getGroupedModels(); // Calculate once per render
+
+  // Helper function to get display name for selected model
+  const getSelectedModelDisplayName = () => {
+    if (selectedModel === 'neuroswitch') return 'NeuroSwitch';
+    
+    // Check if it's a provider-level default (e.g., "openai")
+    const knownProviders = ['openai', 'claude', 'gemini'];
+    if (knownProviders.includes(selectedModel)) {
+      const providerName = selectedModel.charAt(0).toUpperCase() + selectedModel.slice(1);
+      return `${providerName} (Default)`;
+    }
+
+    // Check if it's a specific model ID (e.g., "gpt-4o")
+    const model = allModels.find(m => m.id === selectedModel);
+    if (model) return model.name;
+    
+    return 'Select Model'; // Fallback
+  };
+
+  const handleModelSelect = (modelIdentifier: string) => {
+    setSelectedModel(modelIdentifier); // modelIdentifier can be "neuroswitch", "openai", "gpt-4o", etc.
+    setIsModelDropdownOpen(false);
+    setExpandedProvider(null); // Close any submenus
+
+    // Save to localStorage if it's "neuroswitch" or a provider ID
+    // This aligns with how getDefaultModel retrieves the preference.
+    const providerLevelSelections = ['neuroswitch', 'openai', 'claude', 'gemini'];
+    if (providerLevelSelections.includes(modelIdentifier)) {
+        localStorage.setItem('userDefaultModel', modelIdentifier);
+    } else {
+        // If a specific model is selected (e.g., "gpt-4o"),
+        // find its provider and save that provider ID to localStorage.
+        const model = allModels.find(m => m.id === modelIdentifier);
+        if (model && providerLevelSelections.includes(model.provider)) {
+            localStorage.setItem('userDefaultModel', model.provider);
+        }
+    }
+  };
+
+  const toggleProviderSubmenu = (providerKey: string) => {
+    setExpandedProvider(prev => prev === providerKey ? null : providerKey);
+  };
+
   return (
     <>
     <div className="flex h-screen bg-neutral-20 relative"> 
@@ -267,19 +400,72 @@ const ChatLayout: React.FC<ChatLayoutProps> = () => {
         {/* Main Chat Window Area - Now relative for floating controls */}
         <main className="flex-1 flex flex-col overflow-hidden bg-gray-100 relative">
           {/* Floating Controls Container */}
-          <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between p-3 pr-6">
+          <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between p-3 pr-6"> {/* Increased z-index for dropdown */}
             {/* Left Side: Model Dropdown & Status */}
-            <div className="ml-0"> 
-              <select
-                value={selectedModel}
-                onChange={(e) => setSelectedModel(e.target.value)}
-                className="border-gray-300 rounded-md shadow-sm focus:border-orange-300 focus:ring focus:ring-orange-200 focus:ring-opacity-50 text-sm py-1.5 bg-white bg-opacity-90 backdrop-blur-sm"
-              >
-                <option value="neuroswitch">NeuroSwitch</option>
-                <option value="openai">OpenAI</option>
-                <option value="claude">Claude</option>
-                <option value="gemini">Gemini</option>
-              </select>
+            <div className="ml-0 flex items-center space-x-2" ref={modelDropdownRef}>
+              <div className="relative">
+                <button
+                  onClick={() => setIsModelDropdownOpen(!isModelDropdownOpen)}
+                  className="flex items-center justify-between w-auto min-w-[150px] text-sm py-1.5 px-3 border border-gray-300 rounded-md shadow-sm bg-white bg-opacity-90 backdrop-blur-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                >
+                  <span>{getSelectedModelDisplayName()}</span>
+                  <ChevronDown className={`ml-2 h-4 w-4 text-gray-500 transition-transform ${isModelDropdownOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {isModelDropdownOpen && (
+                  <div className="absolute left-0 mt-1 w-64 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none py-1 z-30"> {/* Higher z-index for dropdown content */}
+                    {/* NeuroSwitch Option */}
+                    <button
+                      onClick={() => handleModelSelect('neuroswitch')}
+                      className={`w-full text-left px-3 py-2 text-sm flex items-center ${selectedModel === 'neuroswitch' ? 'bg-orange-100 text-orange-700' : 'text-gray-700 hover:bg-gray-100'}`}
+                    >
+                      NeuroSwitch
+                    </button>
+
+                    {/* Providers and their models */}
+                    {Object.entries(groupedModels).map(([providerKey, providerModels]) => {
+                      if (providerModels.length === 0 && providerKey !== 'openai' && providerKey !== 'claude' && providerKey !== 'gemini') { // Ensure we always render the known provider headers even if models fail to load, but hide if no models and not a core provider.
+                          return null; 
+                      }
+                      const providerName = providerKey.charAt(0).toUpperCase() + providerKey.slice(1);
+                      
+                      return (
+                        <div key={providerKey}>
+                          <button
+                            onClick={() => toggleProviderSubmenu(providerKey)}
+                            className="w-full text-left px-3 py-2 text-sm font-medium text-gray-800 hover:bg-gray-100 flex justify-between items-center"
+                          >
+                            <span>{providerName}</span>
+                            <ChevronRight className={`h-4 w-4 text-gray-500 transition-transform ${expandedProvider === providerKey ? 'rotate-90' : ''}`} />
+                          </button>
+                          {expandedProvider === providerKey && (
+                            <div className="pl-3 border-l-2 border-gray-200 ml-1">
+                              {/* Provider Default Option */}
+                              <button
+                                onClick={() => handleModelSelect(providerKey)}
+                                className={`w-full text-left px-3 py-2 text-sm flex items-center ${selectedModel === providerKey ? 'bg-orange-100 text-orange-600' : 'text-gray-600 hover:bg-gray-50'}`}
+                              >
+                                {providerName} (Default)
+                              </button>
+                              {/* Specific Models */}
+                              {providerModels.map(model => (
+                                <button
+                                  key={model.id}
+                                  onClick={() => handleModelSelect(model.id)}
+                                  className={`w-full text-left px-3 py-2 text-sm flex items-center ${selectedModel === model.id ? 'bg-orange-100 text-orange-600' : 'text-gray-600 hover:bg-gray-50'}`}
+                                >
+                                  {model.name}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+              
+              {/* NeuroSwitch Status Indicator */}
               {selectedModel === 'neuroswitch' && (
                 <span
                   id="neuroswitch-status-indicator-header"

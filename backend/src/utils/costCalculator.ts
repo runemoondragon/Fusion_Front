@@ -91,5 +91,5 @@ export function calculateCost(provider: string, totalTokens: number): number {
   let cost = ((totalTokens / 1000) * pricePer1K) * (1 + PREMIUM_RATE);
   cost = Math.round(cost * 10000) / 10000; // Round to 4 decimals
   return cost;
-}
+} 
 */ 

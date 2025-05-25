@@ -321,3 +321,4 @@ export default function AdminModelsPage() {
 // Add these to your global.css or a relevant stylesheet if not already present
 // .th-admin { @apply px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider; }
 // .td-admin { @apply px-6 py-4 whitespace-nowrap text-sm text-gray-500; }
+ 
