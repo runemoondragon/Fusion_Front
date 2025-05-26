@@ -62,7 +62,8 @@ interface AiResponseType {
 interface ApiResponseData {
   prompt: string;
   response: AiResponseType;
-  model: string;
+  provider: string;
+  model: string | null;
   tokens?: {
     input_tokens?: number;
     output_tokens?: number;
@@ -71,11 +72,19 @@ interface ApiResponseData {
   };
 }
 
+interface AiModel {
+  id: string;         // Will store the id_string from the DB (e.g., "openai/gpt-4.1")
+  name: string;       // Display name from DB (e.g., "OpenAI: GPT-4.1")
+  provider: string;   // General provider name from DB (e.g., "OpenAI", "Google", "Anthropic")
+  is_active: boolean;
+}
+
 interface ChatWindowProps {
   activeChatId: number | null;
   onChatCreated: (newChat: ChatSession) => void; // Callback to inform layout of new chat
   // Add lifted state props from ChatLayout
-  selectedModel: string;
+  selectedModel: string; // This is the ID like "neuroswitch", "openai", "gpt-4o"
+  allModels: AiModel[];   // List of all available AiModel objects
   setSelectedModel: React.Dispatch<React.SetStateAction<string>>;
   neuroStatus: 'green' | 'orange' | '';
   setNeuroStatus: React.Dispatch<React.SetStateAction<'green' | 'orange' | ''>>;
@@ -108,6 +117,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   activeChatId, 
   onChatCreated,
   selectedModel, // Destructure new props
+  allModels,     // Destructure new props
   setSelectedModel, 
   neuroStatus, 
   setNeuroStatus
@@ -241,7 +251,44 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     let responseTokensData: ApiResponseData['tokens'] | undefined = undefined;
 
     try {
-      // 1. Get response from AI Service (/api/chat)
+      // 1. Construct payload for /api/chat (Fusion Backend)
+      let apiPayload: {
+        prompt: string;
+        provider?: string; // For "neuroswitch", "openai", "claude", "gemini"
+        model?: string;    // For specific model IDs like "gpt-4o", or "NeuroSwitch" if we revert
+        image?: string | null;
+        mode?: string | null;
+      } = {
+        prompt: messageToSend,
+        image: imageToSend,
+        mode: modeToSend,
+      };
+
+      const knownProviderLevelSelections = ['neuroswitch', 'openai', 'claude', 'gemini'];
+
+      if (knownProviderLevelSelections.includes(selectedModel)) {
+        // Case: NeuroSwitch selected OR Provider default selected
+        // (e.g., selectedModel is "neuroswitch" or "openai")
+        apiPayload.provider = selectedModel;
+        // No 'model' field sent to /api/chat for these top-level provider/NeuroSwitch selections
+      } else {
+        // Case: Provider + specific model selected
+        // selectedModel is now an id_string like "openai/gpt-4.1" or "google/gemini-1.5-flash"
+        const parts = selectedModel.split('/');
+        if (parts.length === 2) {
+          apiPayload.provider = parts[0]; // e.g., "openai"
+          apiPayload.model = parts[1];    // e.g., "gpt-4.1"
+        } else {
+          // Fallback if id_string format is unexpected
+          console.warn(`ChatWindow: Could not parse provider/model from selectedModel id_string '${selectedModel}'. Sending it as provider. This might lead to unexpected behavior.`);
+          apiPayload.provider = selectedModel; // Attempt to send the whole string as a provider
+        }
+      }
+      
+      console.log('[ChatWindow] Payload to /api/chat (Fusion Backend):', JSON.stringify(apiPayload, null, 2));
+
+
+      // 2. Get response from AI Service (/api/chat)
       const headers: Record<string, string> = {
         Authorization: `Bearer ${token}` // Keep existing auth header
       };
@@ -254,13 +301,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
       const aiServiceRes = await axios.post<ApiResponseData>(
         '/api/chat',
-        {
-          prompt: messageToSend,
-          model: selectedModel === 'neuroswitch' ? "NeuroSwitch" : selectedModel, // This is correct for /api/chat
-          image: imageToSend,
-          mode: modeToSend,
-          // history: currentMessages.slice(0, -1) // Optionally send history if /api/chat supports it
-        },
+        apiPayload, // Use the newly constructed payload
         {
           headers: headers // Pass the constructed headers object
         }
@@ -268,8 +309,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
       const aiServiceData = aiServiceRes.data;
       assistantResponseText = aiServiceData.response.text || aiServiceData.response.output || '[No response text]';
-      actualProvider = aiServiceData.model; // This is the actual provider/model string from /api/chat
-      actualModelUsed = aiServiceData.model; // Or more specific if available, e.g. data.response.model_used
+      actualProvider = aiServiceData.provider; // Use the new 'provider' field
+      actualModelUsed = aiServiceData.model || aiServiceData.provider; // Use specific model, fallback to provider for display if model is null
       responseTokensData = aiServiceData.tokens;
 
       const newAssistantMessage: Message = { role: 'assistant', content: assistantResponseText, provider: actualProvider };

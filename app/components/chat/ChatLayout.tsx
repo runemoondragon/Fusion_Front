@@ -22,11 +22,11 @@ interface ChatSession {
 
 // Define the structure for AI models fetched from the API
 interface AiModel {
-  id: string; // e.g., "gpt-4o", "claude-3-haiku", "openai" (for provider default)
-  name: string; // e.g., "GPT-4o", "Claude 3 Haiku", "OpenAI (Default)"
-  provider: string; // e.g., "openai", "claude", "gemini"
+  id: string;         // Will store the id_string from the DB (e.g., "openai/gpt-4.1")
+  name: string;       // Display name from DB (e.g., "OpenAI: GPT-4.1")
+  provider: string;   // General provider name from DB (e.g., "OpenAI", "Google", "Anthropic")
   is_active: boolean;
-  // is_default could be a backend property, or we derive it
+  // numeric_id?: number; // Optional: if we ever need the original DB PK for some reason other than selection
 }
 
 interface ChatLayoutProps {
@@ -180,9 +180,19 @@ const ChatLayout: React.FC<ChatLayoutProps> = () => {
         if (token) {
           headers['Authorization'] = `Bearer ${token}`;
         }
-        const response = await axios.get<AiModel[]>('/api/models?is_active=true', { headers });
-        // Filter for active models, though API might already do this
-        setAllModels(response.data.filter(model => model.is_active));
+        // Expecting raw API response to have: id (numeric PK), name, id_string, provider, is_active
+        const response = await axios.get<any[]>('/api/models?is_active=true', { headers });
+        
+        const fetchedModels: AiModel[] = response.data
+          .filter(rawModel => rawModel.is_active && typeof rawModel.id_string === 'string' && rawModel.id_string.trim() !== '')
+          .map(rawModel => ({
+            id: rawModel.id_string,      // Crucial: Use id_string as the primary identifier for frontend logic
+            name: rawModel.name,           // For display
+            provider: rawModel.provider, // General provider name from DB (e.g., "OpenAI", "Google")
+            is_active: rawModel.is_active,
+          }));
+        
+        setAllModels(fetchedModels);
       } catch (error) {
         console.error("Error fetching AI models:", error);
         // Optionally set an error state to inform the user
@@ -515,6 +525,7 @@ const ChatLayout: React.FC<ChatLayoutProps> = () => {
             setSelectedModel={setSelectedModel}
             neuroStatus={neuroStatus}
             setNeuroStatus={setNeuroStatus}
+            allModels={allModels}
           />
         </main>
       </div>

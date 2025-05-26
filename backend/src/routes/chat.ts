@@ -9,6 +9,7 @@ interface NeuroSwitchResponse {
   response: string;
   tokens?: number;
   model?: string;
+  model_used?: string;
   provider_used?: string;
   response_time?: number;
   fallback_reason?: string | null;
@@ -85,8 +86,8 @@ async function deductCreditsAndLog(userId: number, cost: number, provider: strin
 }
 
 router.post('/', verifyToken, async (req: Request, res: Response) => {
-  const { prompt, model, image, mode } = req.body;
-  console.log('Received /api/chat request. req.body.model:', model);
+  const { prompt, provider, model: modelFromRequest, image, mode } = req.body;
+  console.log('[API Chat] Received request on /api/chat. Provider:', provider, 'Model:', modelFromRequest, 'Prompt:', prompt ? 'Exists' : 'Missing');
   const user = req.user as AuthUser;
   
   if (!user || typeof user.id === 'undefined') {
@@ -149,23 +150,51 @@ if (isProd && chatIdFromHeader) {
       neuroSwitchHeaders['X-Session-ID'] = chatIdFromHeader;
     }
 
-    // --- New BYOAPI Logic --- 
-    const userSelectedModel = model?.toLowerCase();
+    // Define the mapping from provider name (lowercase) to HTTP header name for BYOAPI keys
     const providerHeaderMap: Record<string, string> = {
       'openai': 'X-OpenAI-API-Key',
       'claude': 'X-Claude-API-Key',
       'gemini': 'X-Gemini-API-Key'
+      // Add other providers here if they have specific headers for API keys
     };
 
-    if (userSelectedModel && userSelectedModel !== 'neuroswitch') {
-      // Scenario 1: User selected a specific provider
-      payloadToNeuroSwitch.requested_provider = userSelectedModel;
-      try {
-        const providerResult = await pool.query('SELECT id, name FROM providers WHERE LOWER(name) = LOWER($1)', [userSelectedModel]);
-        if (providerResult.rows.length > 0) {
-          const providerId = providerResult.rows[0].id;
-          const dbProviderName = providerResult.rows[0].name.toLowerCase(); // Ensure lowercase for map lookup
+    // Determine requested_provider and model for NeuroSwitch payload
+    if (provider && provider.toLowerCase() === 'neuroswitch') {
+      payloadToNeuroSwitch.requested_provider = 'neuroswitch';
+      // modelFromRequest should be undefined in this case as per frontend logic
+      // If modelFromRequest was present, NeuroSwitch would need to handle it or ignore it.
+      // For now, we assume frontend sends provider: 'neuroswitch' and no model field.
+    } else if (provider) { // A specific provider (e.g., openai, claude, gemini) was sent
+      payloadToNeuroSwitch.requested_provider = provider.toLowerCase();
+      if (modelFromRequest) { // A specific model under that provider was also specified
+        payloadToNeuroSwitch.model = modelFromRequest;
+      } else {
+        // If only provider is sent (e.g. provider: 'openai', no model), 
+        // NeuroSwitch will use the default for that provider.
+        // No specific payloadToNeuroSwitch.model is set here.
+      }
+    } else {
+      // Fallback: If neither 'neuroswitch' nor any other provider is specified by the frontend.
+      // This case should ideally not be hit if the frontend always sends a provider.
+      console.warn('[API Chat] No provider specified by frontend. Defaulting to NeuroSwitch. Request body:', req.body);
+      payloadToNeuroSwitch.requested_provider = 'neuroswitch';
+    }
 
+    // --- BYOAPI Logic Adjustment ---
+    // This logic adds BYOAPI keys to neuroSwitchHeaders if applicable
+    const targetProviderForBYOAPI = payloadToNeuroSwitch.requested_provider?.toLowerCase();
+
+    if (targetProviderForBYOAPI && targetProviderForBYOAPI !== 'neuroswitch') {
+      // Scenario 1: A specific provider is targeted (e.g., openai, claude, gemini)
+      console.log(`[API Chat] BYOAPI Check: Targeting specific provider: ${targetProviderForBYOAPI}. User ID: ${userId}`);
+      try {
+        // Fetch the provider ID from the database based on the name
+        const providerDbResult = await pool.query('SELECT id, name FROM providers WHERE LOWER(name) = LOWER($1)', [targetProviderForBYOAPI]);
+        if (providerDbResult.rows.length > 0) {
+          const providerId = providerDbResult.rows[0].id;
+          const dbProviderName = providerDbResult.rows[0].name.toLowerCase(); // Use normalized name for map lookup
+
+          // Fetch the user's external API key for this provider
           const externalKeyResult = await pool.query(
             'SELECT encrypted_api_key, is_active FROM user_external_api_keys WHERE user_id = $1 AND provider_id = $2',
             [userId, providerId]
@@ -175,66 +204,66 @@ if (isProd && chatIdFromHeader) {
             const encryptedKey = externalKeyResult.rows[0].encrypted_api_key;
             try {
               const decryptedKey = decrypt(encryptedKey);
-              const headerName = providerHeaderMap[dbProviderName];
+              const headerName = providerHeaderMap[dbProviderName]; // providerHeaderMap should be defined earlier
               if (headerName) {
                 neuroSwitchHeaders[headerName] = decryptedKey;
-                console.log(`[API Chat] Using user's active key for specific provider ${dbProviderName} via header ${headerName}. User ID: ${userId}`);
+                console.log(`[API Chat] BYOAPI Success: Using user's active key for ${dbProviderName} via header ${headerName}. User ID: ${userId}`);
               } else {
-                console.warn(`[API Chat] No specific header defined in map for provider: ${dbProviderName}`);
+                console.warn(`[API Chat] BYOAPI Skip: No specific header defined in providerHeaderMap for provider: ${dbProviderName}`);
               }
             } catch (decryptionError) {
-              console.error(`[API Chat] Failed to decrypt key for ${dbProviderName}. User ID: ${userId}. Error:`, decryptionError);
+              console.error(`[API Chat] BYOAPI Error: Failed to decrypt key for ${dbProviderName}. User ID: ${userId}. Error:`, decryptionError);
             }
           } else {
-            console.log(`[API Chat] No active key found for specific provider ${dbProviderName}. User ID: ${userId}`);
+            console.log(`[API Chat] BYOAPI Skip: No active key found for specific provider ${dbProviderName}. User ID: ${userId}`);
           }
         } else {
-          console.warn(`[API Chat] Provider '${userSelectedModel}' not found in DB. Cannot use BYOAPI for this request.`);
+          console.warn(`[API Chat] BYOAPI Skip: Provider '${targetProviderForBYOAPI}' not found in DB providers table. Cannot use BYOAPI for this request.`);
         }
       } catch (dbError) {
-        console.error('[API Chat] DB error processing specific provider BYOAPI:', dbError);
+        console.error('[API Chat] BYOAPI Error: DB error processing specific provider BYOAPI:', dbError);
       }
-    } else {
-      // Scenario 2: User selected NeuroSwitch (or no model specified, defaulting to NeuroSwitch)
-      payloadToNeuroSwitch.requested_provider = 'neuroswitch';
-      const targetProvidersForNeuroSwitch = ['openai', 'claude', 'gemini'];
+    } else if (targetProviderForBYOAPI === 'neuroswitch') {
+      // Scenario 2: NeuroSwitch is the target, attempt to add all relevant BYOAPI keys
+      console.log(`[API Chat] BYOAPI Check: NeuroSwitch targeted. Fetching all relevant active keys for user ${userId}.`);
+      const targetProvidersForNeuroSwitchRouting = ['openai', 'claude', 'gemini']; // Providers NeuroSwitch might route to
       try {
         const activeKeysResult = await pool.query(
           `SELECT p.name as provider_db_name, ueak.encrypted_api_key
            FROM user_external_api_keys ueak
            JOIN providers p ON ueak.provider_id = p.id
            WHERE ueak.user_id = $1 AND LOWER(p.name) = ANY($2::text[]) AND ueak.is_active = TRUE`,
-          [userId, targetProvidersForNeuroSwitch]
+          [userId, targetProvidersForNeuroSwitchRouting]
         );
 
         if (activeKeysResult.rows.length > 0) {
-          console.log(`[API Chat] Found ${activeKeysResult.rows.length} active BYOAPI keys for NeuroSwitch routing. User ID: ${userId}`);
+          console.log(`[API Chat] BYOAPI Info: Found ${activeKeysResult.rows.length} active BYOAPI keys for potential NeuroSwitch routing. User ID: ${userId}`);
           for (const row of activeKeysResult.rows) {
             const dbProviderName = row.provider_db_name.toLowerCase();
             const encryptedKey = row.encrypted_api_key;
             try {
               const decryptedKey = decrypt(encryptedKey);
-              const headerName = providerHeaderMap[dbProviderName];
+              const headerName = providerHeaderMap[dbProviderName]; // providerHeaderMap should be defined earlier
               if (headerName) {
                 neuroSwitchHeaders[headerName] = decryptedKey;
-                console.log(`[API Chat] Adding header ${headerName} for provider ${dbProviderName} for NeuroSwitch routing. User ID: ${userId}`);
+                console.log(`[API Chat] BYOAPI Info: Adding header ${headerName} for provider ${dbProviderName} for NeuroSwitch routing. User ID: ${userId}`);
               }
             } catch (decryptionError) {
-              console.error(`[API Chat] Failed to decrypt key for ${dbProviderName} (NeuroSwitch routing). User ID: ${userId}. Error:`, decryptionError);
+              console.error(`[API Chat] BYOAPI Error: Failed to decrypt key for ${dbProviderName} (NeuroSwitch routing). User ID: ${userId}. Error:`, decryptionError);
             }
           }
         } else {
-          console.log(`[API Chat] No active BYOAPI keys found for OpenAI, claude, or Gemini for NeuroSwitch routing. User ID: ${userId}`);
+          console.log(`[API Chat] BYOAPI Info: No active BYOAPI keys found for OpenAI, Claude, or Gemini for NeuroSwitch routing. User ID: ${userId}`);
         }
       } catch (dbError) {
-        console.error('[API Chat] DB error fetching multiple keys for NeuroSwitch BYOAPI:', dbError);
+        console.error('[API Chat] BYOAPI Error: DB error fetching multiple keys for NeuroSwitch BYOAPI:', dbError);
       }
     }
-    // --- End New BYOAPI Logic ---
+    // --- End BYOAPI Logic Adjustment ---
     
-    // console.log('[API Chat] Sending to NeuroSwitch URL:', neuroSwitchUrl);
-    // console.log('[API Chat] Payload to NeuroSwitch:', JSON.stringify(payloadToNeuroSwitch, null, 2));
-    // console.log('[API Chat] Headers to NeuroSwitch:', neuroSwitchHeaders); // DO NOT log headers if they contain sensitive API keys
+    console.log('[API Chat] Sending to NeuroSwitch URL:', neuroSwitchUrl);
+    console.log('[API Chat] Payload to NeuroSwitch:', JSON.stringify(payloadToNeuroSwitch, null, 2));
+    // console.log('[API Chat] Headers to NeuroSwitch:', neuroSwitchHeaders); // DO NOT log sensitive headers in prod
 
     const neuroRes = await axios.post<NeuroSwitchResponse>(
       neuroSwitchUrl,
@@ -261,10 +290,11 @@ if (isProd && chatIdFromHeader) {
 
     const fusionRequestModel = req.body.model?.toLowerCase();
     const neuroSwitchActualProvider = data.provider_used;
-    const neuroSwitchActualModel = data.model;
+    const neuroSwitchActualModel = data.model_used;
     const neuroSwitchFallbackReason = data.fallback_reason;
 
-    if (fusionRequestModel === 'neuroswitch') {
+    // Correctly determine NeuroSwitch fee based on the initially requested provider
+    if (provider && provider.toLowerCase() === 'neuroswitch') { // Use 'provider' (from req.body.provider)
       neuroSwitchFeeToLog = getNeuroSwitchClassifierFee();
     }
 
@@ -375,7 +405,8 @@ if (isProd && chatIdFromHeader) {
     res.json({
       prompt,
       response: { text: data.response },
-      model: neuroSwitchActualModel || neuroSwitchActualProvider,
+      provider: neuroSwitchActualProvider,
+      model: neuroSwitchActualModel,
       tokens: data.token_usage || { total_tokens: data.tokens },
       cost: llmProviderCost,
       neuroswitch_fee: neuroSwitchFeeToLog,
