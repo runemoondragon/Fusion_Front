@@ -288,105 +288,101 @@ if (isProd && chatIdFromHeader) {
     let apiKeyIdToLog: number | null = null;
     let modelForCosting: string | undefined;
 
-    const fusionRequestModel = req.body.model?.toLowerCase();
     const neuroSwitchActualProvider = data.provider_used;
     const neuroSwitchActualModel = data.model_used;
     const neuroSwitchFallbackReason = data.fallback_reason;
 
-    // Correctly determine NeuroSwitch fee based on the initially requested provider
-    if (provider && provider.toLowerCase() === 'neuroswitch') { // Use 'provider' (from req.body.provider)
+    // Determine NeuroSwitch classifier fee if "neuroswitch" was the initial provider selected by the user
+    if (provider && provider.toLowerCase() === 'neuroswitch') { // 'provider' is from req.body
       neuroSwitchFeeToLog = getNeuroSwitchClassifierFee();
     }
 
-    let byoapiKeyUsedOrAttempted = false;
-    if (fusionRequestModel && fusionRequestModel !== 'neuroswitch') {
-        const headerName = providerHeaderMap[fusionRequestModel];
-        if (headerName && neuroSwitchHeaders[headerName]) {
-            byoapiKeyUsedOrAttempted = true;
-        }
-    } else if (fusionRequestModel === 'neuroswitch') {
-        for (const key in providerHeaderMap) {
-            if (neuroSwitchHeaders[providerHeaderMap[key]]) {
-                byoapiKeyUsedOrAttempted = true;
-                break;
-            }
-        }
-    }
-    
-    if (totalTokensForLog !== undefined && neuroSwitchActualProvider) {
-      if (byoapiKeyUsedOrAttempted && !neuroSwitchFallbackReason) {
-        llmProviderCost = 0;
-        // DETAILED LOGS FOR BYOAPI SUCCESS PATH
-        console.log(`[API Chat] BYOAPI SUCCESS PATH Entered. Provider Used: ${neuroSwitchActualProvider}, Model Used: ${neuroSwitchActualModel}`);
-        
-        const providerForApiKeyLookup = neuroSwitchActualProvider.toLowerCase();
-        console.log(`[API Chat] BYOAPI SUCCESS PATH: providerForApiKeyLookup: '${providerForApiKeyLookup}'`);
-        
-        const pResult = await pool.query('SELECT id, name FROM providers WHERE LOWER(name) = $1', [providerForApiKeyLookup]);
-        console.log('[API Chat] BYOAPI SUCCESS PATH: pResult (providers table query results):', pResult.rows);
+    // Check if a BYOAPI key was successfully used or if it's an internal transaction/fallback
+    if (totalTokensForLog !== undefined && neuroSwitchActualProvider && neuroSwitchActualProvider.toLowerCase() !== 'neuroswitch') {
+      // Only proceed if NeuroSwitch reports using a specific LLM provider (not 'neuroswitch' itself as the provider_used)
+      
+      const providerNameFromNeuroSwitch = neuroSwitchActualProvider.toLowerCase(); // Use this directly for querying 'providers' table
+      
+      // Query Fusion's 'providers' table using the direct name from NeuroSwitch (e.g., "gemini", "claude")
+      const providerDbResult = await pool.query('SELECT id FROM providers WHERE LOWER(name) = $1', [providerNameFromNeuroSwitch]);
 
-        if (pResult.rows.length > 0) {
-            const pid = pResult.rows[0].id;
-            const foundProviderName = pResult.rows[0].name;
-            console.log(`[API Chat] BYOAPI SUCCESS PATH: Found provider_id (pid): ${pid} for provider '${foundProviderName}'`);
-            // Restore original query
-            const keyRes = await pool.query('SELECT id FROM user_external_api_keys WHERE user_id = $1 AND provider_id = $2 AND is_active = TRUE', [userId, pid]);
-            console.log(`[API Chat] BYOAPI SUCCESS PATH: keyRes (user_external_api_keys table query results for userId ${userId}, pid ${pid} WITH is_active = TRUE check):`, keyRes.rows);
-            
-            if (keyRes.rows.length > 0) {
-                apiKeyIdToLog = keyRes.rows[0].id;
-                console.log(`[API Chat] BYOAPI SUCCESS PATH: apiKeyIdToLog successfully set to: ${apiKeyIdToLog}`);
-            } else {
-                console.log(`[API Chat] BYOAPI SUCCESS PATH: No active key found in user_external_api_keys for userId ${userId}, pid ${pid}.`);
-            }
+      let userApiKeyIdForActualProvider: number | null = null;
+      if (providerDbResult.rows.length > 0) {
+        const providerIdFromDb = providerDbResult.rows[0].id;
+        // Check if the user has an active key for this specific provider_id
+        const keyRes = await pool.query(
+          'SELECT id FROM user_external_api_keys WHERE user_id = $1 AND provider_id = $2 AND is_active = TRUE',
+          [userId, providerIdFromDb]
+        );
+        if (keyRes.rows.length > 0) {
+          userApiKeyIdForActualProvider = keyRes.rows[0].id; // User has an active key for the provider NeuroSwitch used
+          console.log(`[API Chat] User has active key ID ${userApiKeyIdForActualProvider} for provider ${providerNameFromNeuroSwitch}.`);
         } else {
-            console.log(`[API Chat] BYOAPI SUCCESS PATH: Provider '${providerForApiKeyLookup}' not found in providers table.`);
+          console.log(`[API Chat] User does NOT have an active key for provider ${providerNameFromNeuroSwitch}.`);
         }
       } else {
-        // Internal key was used (either direct or fallback)
-        console.log(`[API Chat] INTERNAL KEY PATH Entered. byoapiKeyUsedOrAttempted: ${byoapiKeyUsedOrAttempted}, neuroSwitchFallbackReason: ${neuroSwitchFallbackReason}, Provider Used: ${neuroSwitchActualProvider}, Model Used: ${neuroSwitchActualModel}`);
-        
-        const providerForCosting = neuroSwitchActualProvider.toLowerCase();
-        modelForCosting = neuroSwitchActualModel?.toLowerCase();
+        console.warn(`[API Chat] Provider ${providerNameFromNeuroSwitch} (from NeuroSwitch) not found in Fusion's providers table.`);
+      }
 
-        // Set default models (id_strings) for costing if model is undefined
-        if (!modelForCosting) {
-          if (providerForCosting === 'gemini') {
-            modelForCosting = 'google//gemini-flash-1.5';
-          } else if (providerForCosting === 'claude') {
-            modelForCosting = 'anthropic/claude-3.5-sonnet'; 
-          } else if (providerForCosting === 'openai') {
-            modelForCosting = 'openai/gpt-4.1';
-          }
-          console.log(`[API Chat] INTERNAL KEY PATH: neuroSwitchActualModel was undefined. Set modelForCosting to default: ${modelForCosting} for provider ${providerForCosting}`);
+      // Scenario 1: Successful BYOAPI transaction
+      // Conditions: User has an active key for the provider NeuroSwitch used, AND NeuroSwitch didn't report a fallback.
+      if (userApiKeyIdForActualProvider && !neuroSwitchFallbackReason) {
+        llmProviderCost = 0; // LLM cost is $0 for the user
+        apiKeyIdToLog = userApiKeyIdForActualProvider; // Log the user's specific API key ID
+        console.log(`[API Chat] BYOAPI SUCCESS: Provider: ${neuroSwitchActualProvider}, Model: ${neuroSwitchActualModel}. LLM Cost: 0. API Key ID: ${apiKeyIdToLog}.`);
+      } else {
+        // Scenario 2: Internal Key used OR NeuroSwitch Fallback occurred
+        console.log(`[API Chat] INTERNAL/FALLBACK: Provider: ${neuroSwitchActualProvider}, Model: ${neuroSwitchActualModel}. Fallback: ${neuroSwitchFallbackReason}. UserKeyFound: ${userApiKeyIdForActualProvider !== null}.`);
+        
+        const providerForCosting = neuroSwitchActualProvider.toLowerCase(); // Provider reported by NeuroSwitch
+        modelForCosting = neuroSwitchActualModel?.toLowerCase(); // Specific model reported by NeuroSwitch
+
+        if (!modelForCosting && providerForCosting) {
+          // Assign a default model id_string for accurate costing with internal keys if NeuroSwitch didn't specify one.
+          // Note: calculateLlmProviderCost performs its own internal mapping (e.g. gemini->google) if needed.
+          if (providerForCosting === 'gemini') { modelForCosting = 'gemini-1.5-flash-latest'; }
+          else if (providerForCosting === 'claude') { modelForCosting = 'claude-3-haiku-20240307'; }
+          else if (providerForCosting === 'openai') { modelForCosting = 'gpt-4o-mini'; }
+          console.log(`[API Chat] INTERNAL/FALLBACK: Model for costing (defaulted): ${modelForCosting} for provider ${providerForCosting}`);
         }
 
-        if (totalTokensForLog !== undefined) {
+        if (modelForCosting) { // Ensure modelForCosting is defined before trying to calculate cost
           llmProviderCost = await calculateLlmProviderCost(
-            providerForCosting, 
-            modelForCosting, 
+            providerForCosting, // Pass the direct provider name (e.g. "gemini", "claude")
+            modelForCosting,
             promptTokens || 0,
             completionTokens || 0
           );
-          console.log(`[API Chat] Internal key used. Provider for costing: ${providerForCosting}, Model for costing: ${modelForCosting}. Calculated LLM Provider Cost: ${llmProviderCost}`);
-          
-          const totalCostToDeduct = (llmProviderCost || 0) + (neuroSwitchFeeToLog || 0);
-          console.log(`[API Chat] Total cost to deduct (LLM + NeuroSwitch Fee): ${totalCostToDeduct}`);
-
-          if (totalCostToDeduct > 0) { 
-            await deductCreditsAndLog(userId, totalCostToDeduct, neuroSwitchActualProvider.toLowerCase(), modelForCosting || 'unknown_model', totalTokensForLog);
-          }
+          console.log(`[API Chat] INTERNAL/FALLBACK: Cost: ${llmProviderCost}.`);
+        } else {
+          console.warn(`[API Chat] INTERNAL/FALLBACK: Cost calculation skipped. modelForCosting is undefined.`);
+          llmProviderCost = null; // Cost cannot be determined
         }
+        // apiKeyIdToLog remains null for internal/fallback path
       }
+    } else if (totalTokensForLog !== undefined && neuroSwitchActualProvider && neuroSwitchActualProvider.toLowerCase() === 'neuroswitch') {
+        console.log(`[API Chat] NeuroSwitch reported as actual provider. LLM cost assumed 0. NeuroSwitch Fee: ${neuroSwitchFeeToLog}`);
+        llmProviderCost = 0; 
+    } else {
+      console.warn(`[API Chat] Cost calculation skipped: totalTokensForLog is ${totalTokensForLog}, neuroSwitchActualProvider is ${neuroSwitchActualProvider}.`);
+      llmProviderCost = null;
     }
 
-    // Log usage
-    // Ensure neuroSwitchActualModel is used for logging if BYOAPI was successful, otherwise modelForCosting for internal.
-    const modelLoggedToDb = (byoapiKeyUsedOrAttempted && !neuroSwitchFallbackReason && neuroSwitchActualModel) 
-                            ? neuroSwitchActualModel 
-                            : modelForCosting || neuroSwitchActualModel; // Fallback chain
+    const totalCostToDeduct = (llmProviderCost || 0) + (neuroSwitchFeeToLog || 0);
+    if (totalCostToDeduct > 0) {
+      console.log(`[API Chat] Total cost to deduct: ${totalCostToDeduct}`);
+      await deductCreditsAndLog(userId, totalCostToDeduct, neuroSwitchActualProvider || 'unknown_provider', modelForCosting || neuroSwitchActualModel || 'unknown_model', totalTokensForLog || 0);
+    }
 
-    console.log(`[API Chat] FINAL LOGGING PARAMS: neuroSwitchFeeToLog: ${neuroSwitchFeeToLog}, llmProviderCost: ${llmProviderCost}, apiKeyIdToLog: ${apiKeyIdToLog}, requestModel: ${req.body.model}, modelLoggedToDb: ${modelLoggedToDb}`); 
+    // Determine the model string to log in the database
+    // If BYOAPI was successful (apiKeyIdToLog is set), use the actual model NeuroSwitch reported.
+    // Otherwise, use the model determined for costing (if any), or fallback to NeuroSwitch's actual model.
+    const modelLoggedToDb = (apiKeyIdToLog && neuroSwitchActualModel) 
+                            ? neuroSwitchActualModel 
+                            : modelForCosting || neuroSwitchActualModel;
+
+    console.log(`[API Chat] FINAL LOGGING PARAMS: neuroSwitchFeeToLog: ${neuroSwitchFeeToLog}, llmProviderCost: ${llmProviderCost}, apiKeyIdToLog: ${apiKeyIdToLog}, requestModel(from frontend): ${req.body.model}, modelLoggedToDb: ${modelLoggedToDb}`);
+
     await logUsage(
       userId,
       neuroSwitchActualProvider,
