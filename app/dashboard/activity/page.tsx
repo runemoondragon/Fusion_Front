@@ -27,6 +27,13 @@ interface MetricData {
   spend: number;
   tokens: number;
   requests: number;
+
+  // New monthly fields from backend
+  currentMonthSpendNeuroSwitch: number;
+  currentMonthCallsNeuroSwitch: number;
+  currentMonthSpendInternalApi: number;
+  currentMonthCallsInternalApi: number;
+  currentMonthTotalTokens: number;
 }
 
 interface ActivityLogEntry {
@@ -366,9 +373,38 @@ export default function ActivityPage() {
 
       {/* Metrics Section */}
       <section className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <StatCard title="Total Spend" value={metrics ? `$${metrics.spend.toFixed(2)}` : '0.00'} isLoading={isLoading} description="USD spent" />
-        <StatCard title="Total Tokens" value={metrics ? metrics.tokens.toLocaleString() : '0'} isLoading={isLoading} description="Tokens processed" />
-        <StatCard title="Total Requests" value={metrics ? metrics.requests.toLocaleString() : '0'} isLoading={isLoading} description="API calls made" />
+        <StatCard 
+          title="Total Spend" 
+          value={metrics ? `$${metrics.spend.toFixed(2)}` : '$0.00'} 
+          isLoading={isLoading} 
+          description={
+            metrics ? (
+              `This Month: Internal API $${metrics.currentMonthSpendInternalApi.toFixed(2)}, ` +
+              `NeuroSwitch Fee $${metrics.currentMonthSpendNeuroSwitch.toFixed(3)}`
+            ) : "USD spent"
+          }
+        />
+        <StatCard 
+          title="Total Tokens" 
+          value={metrics ? metrics.tokens.toLocaleString() : '0'} 
+          isLoading={isLoading} 
+          description={
+            metrics ? 
+            `This Month: ${metrics.currentMonthTotalTokens.toLocaleString()} tokens` 
+            : "Tokens processed"
+          }
+        />
+        <StatCard 
+          title="Total Requests" 
+          value={metrics ? metrics.requests.toLocaleString() : '0'} 
+          isLoading={isLoading} 
+          description={
+            metrics ? (
+              `This Month: Internal API ${metrics.currentMonthCallsInternalApi} calls, ` +
+              `NeuroSwitch ${metrics.currentMonthCallsNeuroSwitch} calls`
+            ) : "API calls made"
+          }
+        />
       </section>
 
       {/* Date Range Picker & Filters/Export */}

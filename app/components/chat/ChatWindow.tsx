@@ -33,11 +33,12 @@ SyntaxHighlighter.registerLanguage('md', markdown);
 
 // Define types for better type checking
 interface Message {
-  id?: number; // Add optional id
+  id?: number | string; // Allow string for temporary IDs
   role: 'user' | 'assistant';
   content: string | any; // Allow 'any' for initial state, but expect string for rendering
   provider?: string;
-  isError?: boolean; // Add optional isError
+  isError?: boolean; // Add optional isError for styling error messages
+  isLoading?: boolean; // Added for temporary loading state
   // Consider adding timestamp if needed for local display sorting before saving
 }
 
@@ -70,6 +71,8 @@ interface ApiResponseData {
     total_tokens?: number;
     max_tokens?: number;
   };
+  tool_name?: string;
+  file_downloads?: any[];
 }
 
 interface AiModel {
@@ -221,34 +224,59 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     if (!token) {
       setMessages((prev) => [
         ...prev,
-        { role: 'assistant', content: 'Authentication error: Please log in.' },
+        { role: 'assistant', content: 'Authentication error: Please log in.', isError: true },
       ]);
       return;
     }
 
+    // Capture current input and image data *before* clearing for the payload
     const userMessageContent = input.trim();
-    const userMessage: Message = { role: 'user', content: userMessageContent };
-    const currentMessages = [...messages, userMessage];
-    setMessages(currentMessages);
-
-    const messageToSend = userMessageContent;
     const imageToSend = imageData;
     const modeToSend = currentMode;
-    const uiSelectedProviderForSession = selectedModel; // This is the provider selected in the UI
+    const uiSelectedProviderForSession = selectedModel;
 
+    const userMessage: Message = { role: 'user', content: userMessageContent };
+
+    // Add user message to UI
+    setMessages((prevMessages) => [...prevMessages, userMessage]);
+
+    // Prepare and add temporary assistant loading message
+    const tempLoadingMessageId = `assistant-loading-${Date.now()}`;
+    let tempProviderForIcon = selectedModel;
+    if (selectedModel && selectedModel.includes('/')) {
+        const parts = selectedModel.split('/');
+        if (parts.length > 0) {
+            tempProviderForIcon = parts[0].toLowerCase(); // e.g., "openai" from "openai/gpt-4.1"
+        }
+    } else if (selectedModel) {
+        tempProviderForIcon = selectedModel.toLowerCase();
+    }
+
+    const tempAssistantMessage: Message = {
+        id: tempLoadingMessageId,
+        role: 'assistant',
+        content: 'Thinking...', // Placeholder content
+        provider: tempProviderForIcon, // Use parsed provider for icon
+        isLoading: true,
+    };
+    setMessages((prevMessages) => [...prevMessages, tempAssistantMessage]);
+
+    // Now clear input fields and related state
     setInput('');
     setImageData(null);
     setImagePreview(null);
     setCurrentMode(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
 
-    setLoading(true);
+    setLoading(true); // This now primarily controls the input field's disabled state and general loading perception
     setNeuroStatus('');
 
     let assistantResponseText = 'Error contacting AI.';
     let actualProvider = 'Unknown';
     let actualModelUsed = 'Unknown';
     let responseTokensData: ApiResponseData['tokens'] | undefined = undefined;
+    let messageIsError = false;
+    let toolNameUsed: string | undefined = undefined;
 
     try {
       // 1. Construct payload for /api/chat (Fusion Backend)
@@ -259,7 +287,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         image?: string | null;
         mode?: string | null;
       } = {
-        prompt: messageToSend,
+        prompt: userMessageContent,
         image: imageToSend,
         mode: modeToSend,
       };
@@ -276,8 +304,16 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         // selectedModel is now an id_string like "openai/gpt-4.1" or "google/gemini-1.5-flash"
         const parts = selectedModel.split('/');
         if (parts.length === 2) {
-          apiPayload.provider = parts[0]; // e.g., "openai"
-          apiPayload.model = parts[1];    // e.g., "gpt-4.1"
+          let providerNameFromIdString = parts[0].toLowerCase(); // e.g., "openai", "anthropic", "google"
+          if (providerNameFromIdString === 'anthropic') {
+            apiPayload.provider = 'claude';
+          } else if (providerNameFromIdString === 'google') {
+            apiPayload.provider = 'gemini';
+          } else {
+            // Directly use if it's already 'openai' or any other future provider that matches this convention
+            apiPayload.provider = providerNameFromIdString; 
+          }
+          apiPayload.model = parts[1];    // e.g., "gpt-4.1", "claude-3.5-sonnet"
         } else {
           // Fallback if id_string format is unexpected
           console.warn(`ChatWindow: Could not parse provider/model from selectedModel id_string '${selectedModel}'. Sending it as provider. This might lead to unexpected behavior.`);
@@ -312,9 +348,11 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       actualProvider = aiServiceData.provider; // Use the new 'provider' field
       actualModelUsed = aiServiceData.model || aiServiceData.provider; // Use specific model, fallback to provider for display if model is null
       responseTokensData = aiServiceData.tokens;
+      toolNameUsed = aiServiceData.tool_name;
 
-      const newAssistantMessage: Message = { role: 'assistant', content: assistantResponseText, provider: actualProvider };
-      setMessages((prev) => [...prev, newAssistantMessage]);
+      if (toolNameUsed) {
+        assistantResponseText = `${assistantResponseText}\n\n🔩 Used tool: ${toolNameUsed}`;
+      }
 
       if (responseTokensData && typeof responseTokensData.total_tokens === 'number') {
         setTokensUsed(prev => prev + responseTokensData!.total_tokens!); // Accumulate tokens if it makes sense, or use session tokens
@@ -356,14 +394,47 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         // For now, the chat turn is in ChatWindow state, but not persisted if this fails.
       }
 
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error sending message to AI service:", err);
-      setMessages((prev) => [
-        ...prev,
-        { role: 'assistant', content: assistantResponseText }, // Uses default error message if AI call failed
-      ]);
+      messageIsError = true; // Mark this as an error message
+
+      if (err && err.isAxiosError && err.response) {
+        // The request was made and the server responded with a status code
+        // that falls out of the range of 2xx
+        if (err.response.status === 402) {
+          assistantResponseText = err.response.data.message || 'You do not have enough credits to complete this action. Please top up to continue.';
+        } else {
+          // Other server errors (500, 400, 401, etc.)
+          assistantResponseText = err.response.data.details || err.response.data.error || 'An error occurred with the AI service.';
+        }
+      } else if (err && err.isAxiosError && err.request) {
+        // The request was made but no response was received
+        assistantResponseText = 'The AI service is not responding. Please check your connection or try again later.';
+      } else {
+        // Something happened in setting up the request that triggered an Error or a non-Axios error
+        assistantResponseText = 'An unexpected error occurred while sending your message.';
+        // For non-Axios errors, log the error object if it might be useful
+        if (err && !(err.isAxiosError)) {
+            console.error("Non-Axios error details:", err);
+        }
+      }
+
     } finally {
       setLoading(false);
+      // Update the temporary loading message with the actual response or error
+      setMessages((prevMessages) =>
+        prevMessages.map((msg) =>
+          msg.id === tempLoadingMessageId
+            ? {
+                ...msg, // Retain role, id
+                content: assistantResponseText,
+                provider: actualProvider, // Update with the actual provider from the response
+                isError: messageIsError,
+                isLoading: false, // Mark as no longer loading
+              }
+            : msg
+        )
+      );
     }
   };
 
@@ -551,7 +622,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             {/* Assistant Avatar */}
             <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-white text-xs overflow-hidden">
               {(() => {
-                const providerName = msg.provider?.toLowerCase().replace(/\\s+/g, '-') || 'default';
+                const providerName = msg.provider?.toLowerCase().replace(/\s+/g, '-') || 'default';
                 // Icon logic remains the same
                 if (providerName === 'openai') return <img src="/openai.png" alt="OpenAI" className="w-full h-full object-contain" />;
                 if (providerName === 'claude') return <img src="/claude.png" alt="Claude" className="w-full h-full object-contain" />;
@@ -568,8 +639,16 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             <div
               className={`message-content-container ${bubbleBaseClasses} bg-gray-100 text-slate-900 rounded-bl-none max-w-xl lg:max-w-2xl`}
             >
-              {/* Content rendering remains the same */}
-              {msg.isError ? (
+              {/* Content rendering conditional on isLoading, isError, or normal content */}
+              {msg.isLoading ? (
+                <div className="flex items-center text-sm text-slate-700 py-1">
+                  <svg className="animate-spin -ml-0.5 mr-2 h-4 w-4 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  <span>Thinking...</span>
+                </div>
+              ) : msg.isError ? (
                 <p className="text-red-500 text-sm">{currentMessageContent}</p> 
               ) : (
                 <div className="prose prose-invert max-w-none chat-message-content font-sans text-xs">
@@ -756,11 +835,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                   { key: 'deep_research', label: 'Deep Research', icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 2a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V4a2 2 0 00-2-2H4zm3.5 4.5a.5.5 0 01.5-.5h5a.5.5 0 010 1h-5a.5.5 0 01-.5-.5zm0 2a.5.5 0 01.5-.5h5a.5.5 0 010 1h-5a.5.5 0 01-.5-.5zm0 2a.5.5 0 01.5-.5h2a.5.5 0 010 1h-2a.5.5 0 01-.5-.5z" clipRule="evenodd" /></svg> },
                   { key: 'think', label: 'Think', icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" /></svg> },
                   { key: 'write_code', label: 'Write/Code', icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.316 3.051a1 1 0 01.633 1.265l-4 12a1 1 0 11-1.898-.632l4-12a1 1 0 011.265-.633zM5.707 6.293a1 1 0 010 1.414L3.414 10l2.293 2.293a1 1 0 11-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0zm8.586 0a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 11-1.414-1.414L16.586 10l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" /></svg> },
-  
                   { key: 'image', label: 'Image', icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" /></svg> },
-                  { key: 'refresh', label: 'Refresh', icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" /></svg> },
-                  { key: 'reset', label: 'Reset', icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" /></svg> },
-                  { key: 'quit', label: 'Quit', icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" /></svg> },
                 ].map((mode) => (
                   <button
                     key={mode.key}

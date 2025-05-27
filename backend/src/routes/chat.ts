@@ -20,6 +20,8 @@ interface NeuroSwitchResponse {
     max_tokens?: number;
     runtime?: number;
   };
+  tool_name?: string;
+  file_downloads?: string[];
 }
 
 const router = express.Router();
@@ -94,6 +96,156 @@ router.post('/', verifyToken, async (req: Request, res: Response) => {
     return res.status(401).json({ error: 'Unauthorized: User ID not found in token' });
   }
   const userId = user.id;
+  const userRole = user.role; // Store role for easier access
+
+  // Variables to determine if parts of the cost are covered by free allowance
+  let isNeuroSwitchFeeCoveredByAllowance = false;
+  let internalApiCostPartOfTransactionCoveredByAllowance = 0;
+
+  // --- BEGIN MONTHLY FREE ALLOWANCE CHECKS (for 'tester' role) ---
+  if (userRole === 'tester') {
+    try {
+      const appConfigResult = await pool.query('SELECT key, value FROM app_config WHERE key = ANY($1)', [['limit_internal_api_cost_cents_tester', 'limit_neuroswitch_requests_tester']]);
+      const limits: { [key: string]: number } = {};
+      appConfigResult.rows.forEach(row => {
+        limits[row.key] = parseInt(row.value, 10);
+      });
+
+      const internalApiCostLimitCents = limits['limit_internal_api_cost_cents_tester'];
+      const neuroswitchRequestsLimit = limits['limit_neuroswitch_requests_tester'];
+
+      const usageQuery = `
+        SELECT
+          COALESCE(SUM(CASE WHEN api_key_id IS NULL THEN cost ELSE 0 END) * 100, 0) AS current_month_internal_api_cost_cents,
+          COALESCE(SUM(CASE WHEN neuroswitch_fee > 0 THEN 1 ELSE 0 END), 0) AS current_month_neuroswitch_requests
+        FROM usage_logs
+        WHERE user_id = $1
+          AND created_at >= date_trunc('month', CURRENT_TIMESTAMP AT TIME ZONE 'UTC')
+          AND created_at < date_trunc('month', CURRENT_TIMESTAMP AT TIME ZONE 'UTC') + interval '1 month';
+      `;
+      const usageResult = await pool.query(usageQuery, [userId]);
+      const monthlyUsage = usageResult.rows[0];
+      const currentMonthInternalApiCostCents = parseFloat(monthlyUsage.current_month_internal_api_cost_cents);
+      const currentMonthNeuroswitchRequests = parseInt(monthlyUsage.current_month_neuroswitch_requests, 10);
+
+      // Check NeuroSwitch Request Allowance (only if the current request is for NeuroSwitch)
+      const isCurrentRequestForNeuroSwitch = req.body.provider?.toLowerCase() === 'neuroswitch';
+      if (isCurrentRequestForNeuroSwitch && neuroswitchRequestsLimit > 0) {
+        if (currentMonthNeuroswitchRequests < neuroswitchRequestsLimit) {
+          isNeuroSwitchFeeCoveredByAllowance = true;
+          // This request's fee is covered. It will be "used" from the allowance.
+        } else {
+          // Allowance exhausted, fee must be paid from credits. Check if credits are sufficient.
+          const neuroSwitchFeeCents = (await getNeuroSwitchClassifierFee()) * 100;
+          const creditResult = await pool.query('SELECT balance_cents FROM user_credits WHERE user_id = $1', [userId]);
+          const currentBalanceCents = creditResult.rows.length > 0 ? creditResult.rows[0].balance_cents : 0;
+          if (currentBalanceCents < neuroSwitchFeeCents) {
+            console.log(`[API Chat Limit] Tester ${userId} exceeded NeuroSwitch request allowance AND has insufficient credits for this request's fee. Allowance: ${neuroswitchRequestsLimit}, Used: ${currentMonthNeuroswitchRequests}, Balance: ${currentBalanceCents}, Fee: ${neuroSwitchFeeCents}`);
+            return res.status(402).json({ // 402 Payment Required
+              error: 'Insufficient Credits for NeuroSwitch Fee',
+              message: 'You have exhausted your free NeuroSwitch request allowance and do not have enough credits to cover the fee for this request.'
+            });
+          }
+        }
+      }
+
+      // Check Internal API Cost Allowance state (this informs if upcoming internal costs need credits)
+      // This doesn't block here, but influences credit checks later if internal API is used by this request.
+      if (internalApiCostLimitCents > 0 && currentMonthInternalApiCostCents >= internalApiCostLimitCents) {
+        // Tester has exhausted their free internal API cost allowance.
+        // Subsequent internal API costs will need to be covered by credits.
+        // This state is implicitly handled by the standard credit check below if it's extended to testers in this scenario.
+        console.log(`[API Chat Info] Tester ${userId} has exhausted free internal API cost allowance. Usage: ${currentMonthInternalApiCostCents}, Limit: ${internalApiCostLimitCents}. Subsequent internal costs require credits.`);
+      } else if (internalApiCostLimitCents > 0) {
+         internalApiCostPartOfTransactionCoveredByAllowance = internalApiCostLimitCents - currentMonthInternalApiCostCents;
+         // This is the remaining free allowance for internal API costs this month.
+         // The actual LLM cost of *this* transaction will be checked against this later.
+      }
+
+    } catch (limitCheckError: any) {
+      console.error(`[API Chat Allowance Check] Error checking usage allowances for tester ${userId}: ${limitCheckError.message}`);
+      return res.status(500).json({ error: 'Internal server error', details: 'Failed to verify usage allowances.' });
+    }
+  }
+  // --- END MONTHLY FREE ALLOWANCE CHECKS ---
+
+  // --- BEGIN PRE-CHECK FOR INSUFFICIENT CREDITS ---
+  // Applies to 'user' role directly.
+  // Applies to 'tester' role if their free allowances for the specific cost type of this request are exhausted.
+  // 'pro' and 'admin' bypass this explicit pre-check.
+  
+  let requiresCreditPreCheck = false;
+  if (userRole === 'user') {
+    requiresCreditPreCheck = true;
+  } else if (userRole === 'tester') {
+    // For testers, credit pre-check is needed if the cost of THIS transaction isn't covered by an allowance.
+    // This is partially handled above for NeuroSwitch fee.
+    // For LLM cost, if internalApiCostPartOfTransactionCoveredByAllowance is 0 (meaning allowance exhausted or not applicable),
+    // then a credit check is needed if this transaction incurs an LLM cost.
+    // This is complex to pre-calculate perfectly here.
+    // A simpler approach: if a tester's general free internal API allowance is used up (checked above), 
+    // then they are subject to credit checks like a normal user for any internal API cost.
+    // The NeuroSwitch specific check is already done.
+    // Let's assume for now the 'logUsage' and 'deductCreditsAndLog' will handle the final balance.
+    // The main block for 'user' role credit check is below. We might need a modified version for testers
+    // if their free internal API allowance is used.
+
+    // Simpler: if tester's internal API allowance is gone, they function like a 'user' for credit purposes for internal API.
+    const appConfigResult = await pool.query('SELECT value FROM app_config WHERE key = $1', ['limit_internal_api_cost_cents_tester']);
+    const internalApiCostLimitCents = appConfigResult.rows.length > 0 ? parseInt(appConfigResult.rows[0].value, 10) : 0;
+    if (internalApiCostLimitCents > 0) { // Only if limit is active
+        const usageResult = await pool.query(
+            `SELECT COALESCE(SUM(CASE WHEN api_key_id IS NULL THEN cost ELSE 0 END) * 100, 0) AS current_month_internal_api_cost_cents
+             FROM usage_logs WHERE user_id = $1 AND created_at >= date_trunc('month', CURRENT_TIMESTAMP AT TIME ZONE 'UTC') AND created_at < date_trunc('month', CURRENT_TIMESTAMP AT TIME ZONE 'UTC') + interval '1 month'`, [userId]
+        );
+        const currentMonthInternalApiCostCents = parseFloat(usageResult.rows[0].current_month_internal_api_cost_cents);
+        if (currentMonthInternalApiCostCents >= internalApiCostLimitCents) {
+            console.log(`[API Chat Credit Pre-Check] Tester ${userId} internal API free allowance exhausted. Applying user-like credit check.`);
+            requiresCreditPreCheck = true; // Tester's free internal API quota is gone, treat like a user for credits for internal API costs.
+                                       // NeuroSwitch fee already checked above if allowance was gone.
+        }
+    }
+  }
+
+  if (requiresCreditPreCheck) { 
+    try {
+      const creditResult = await pool.query('SELECT balance_cents FROM user_credits WHERE user_id = $1', [userId]);
+      let currentBalanceCents = 0;
+      if (creditResult.rows.length > 0) {
+        currentBalanceCents = creditResult.rows[0].balance_cents;
+      } else {
+        console.warn(`[API Chat Pre-Check] No credit record found for user ${userId} (Role: ${userRole}). Assuming 0 cents balance.`);
+      }
+
+      // General check: if balance is zero or less, block.
+      // Specific cost of *this* request will be handled by deductCreditsAndLog, which might fail if too low.
+      // This is a basic "do you have ANY credits" check.
+      if (currentBalanceCents <= 0) {
+        // Special consideration for tester for NeuroSwitch fee if allowance was used and they passed the specific fee check
+        const isCurrentRequestForNeuroSwitch = req.body.provider?.toLowerCase() === 'neuroswitch';
+        if (userRole === 'tester' && isCurrentRequestForNeuroSwitch && !isNeuroSwitchFeeCoveredByAllowance) {
+          // They passed the specific check for this NeuroSwitch fee, so don't block here based on general zero balance
+          // if that check already confirmed they can cover *this* fee.
+          console.log(`[API Chat Pre-Check] Tester ${userId} has <=0 balance but passed specific NeuroSwitch fee credit check. Proceeding for this NS request.`);
+        } else {
+          console.log(`[API Chat Pre-Check] Blocking user ${userId} (Role: ${userRole}) due to insufficient credits (Balance: ${currentBalanceCents} cents).`);
+          return res.status(402).json({ 
+            error: 'Insufficient Credits',
+            message: 'You do not have enough credits to complete this action. Please top up to continue.'
+          });
+        }
+      }
+    } catch (dbError: any) {
+      console.error(`[API Chat Pre-Check] DB error fetching credits for user ${userId}: ${dbError.message}`);
+      return res.status(500).json({ error: 'Internal server error', details: 'Failed to verify credit balance.' });
+    }
+  }
+  // --- END PRE-CHECK FOR INSUFFICIENT CREDITS ---
+
+  // Initialize variables that will be determined within the try block
+  let apiKeyIdToLog: number | null = null;
+  let modelForCosting: string | undefined = undefined;
+
   const chatIdFromHeader = req.headers['x-chat-id'] as string | undefined;
 
   if (!prompt) {
@@ -284,94 +436,106 @@ if (isProd && chatIdFromHeader) {
 
     // --- Cost calculation ---
     let llmProviderCost: number | null = null;
-    let neuroSwitchFeeToLog: number | null = 0;
-    let apiKeyIdToLog: number | null = null;
-    let modelForCosting: string | undefined;
+    let neuroSwitchFeeToLog: number | null = 0; // This is the fee amount itself
+    let llmCostToChargeCredits = 0;
+    let neuroSwitchFeeToChargeCredits = 0;
 
     const neuroSwitchActualProvider = data.provider_used;
     const neuroSwitchActualModel = data.model_used;
     const neuroSwitchFallbackReason = data.fallback_reason;
 
-    // Determine NeuroSwitch classifier fee if "neuroswitch" was the initial provider selected by the user
-    if (provider && provider.toLowerCase() === 'neuroswitch') { // 'provider' is from req.body
-      neuroSwitchFeeToLog = getNeuroSwitchClassifierFee();
+    const currentRequestIsNeuroSwitchType = req.body.provider?.toLowerCase() === 'neuroswitch';
+
+    if (currentRequestIsNeuroSwitchType) {
+      neuroSwitchFeeToLog = await getNeuroSwitchClassifierFee(); // Actual fee value
+      if (userRole === 'tester' && isNeuroSwitchFeeCoveredByAllowance) {
+        // Fee is covered by allowance, so no charge to credits for this part
+        neuroSwitchFeeToChargeCredits = 0;
+        console.log(`[API Chat Cost] Tester ${userId} NeuroSwitch fee ($${neuroSwitchFeeToLog}) covered by monthly allowance.`);
+      } else {
+        // Not a tester, or tester's allowance is used up for NeuroSwitch requests
+        neuroSwitchFeeToChargeCredits = neuroSwitchFeeToLog;
+      }
     }
 
     // Check if a BYOAPI key was successfully used or if it's an internal transaction/fallback
     if (totalTokensForLog !== undefined && neuroSwitchActualProvider && neuroSwitchActualProvider.toLowerCase() !== 'neuroswitch') {
-      // Only proceed if NeuroSwitch reports using a specific LLM provider (not 'neuroswitch' itself as the provider_used)
-      
-      const providerNameFromNeuroSwitch = neuroSwitchActualProvider.toLowerCase(); // Use this directly for querying 'providers' table
-      
-      // Query Fusion's 'providers' table using the direct name from NeuroSwitch (e.g., "gemini", "claude")
+      const providerNameFromNeuroSwitch = neuroSwitchActualProvider.toLowerCase();
       const providerDbResult = await pool.query('SELECT id FROM providers WHERE LOWER(name) = $1', [providerNameFromNeuroSwitch]);
-
       let userApiKeyIdForActualProvider: number | null = null;
       if (providerDbResult.rows.length > 0) {
         const providerIdFromDb = providerDbResult.rows[0].id;
-        // Check if the user has an active key for this specific provider_id
         const keyRes = await pool.query(
           'SELECT id FROM user_external_api_keys WHERE user_id = $1 AND provider_id = $2 AND is_active = TRUE',
           [userId, providerIdFromDb]
         );
-        if (keyRes.rows.length > 0) {
-          userApiKeyIdForActualProvider = keyRes.rows[0].id; // User has an active key for the provider NeuroSwitch used
-          console.log(`[API Chat] User has active key ID ${userApiKeyIdForActualProvider} for provider ${providerNameFromNeuroSwitch}.`);
-        } else {
-          console.log(`[API Chat] User does NOT have an active key for provider ${providerNameFromNeuroSwitch}.`);
-        }
-      } else {
-        console.warn(`[API Chat] Provider ${providerNameFromNeuroSwitch} (from NeuroSwitch) not found in Fusion's providers table.`);
+        if (keyRes.rows.length > 0) userApiKeyIdForActualProvider = keyRes.rows[0].id;
       }
 
-      // Scenario 1: Successful BYOAPI transaction
-      // Conditions: User has an active key for the provider NeuroSwitch used, AND NeuroSwitch didn't report a fallback.
-      if (userApiKeyIdForActualProvider && !neuroSwitchFallbackReason) {
-        llmProviderCost = 0; // LLM cost is $0 for the user
-        apiKeyIdToLog = userApiKeyIdForActualProvider; // Log the user's specific API key ID
-        console.log(`[API Chat] BYOAPI SUCCESS: Provider: ${neuroSwitchActualProvider}, Model: ${neuroSwitchActualModel}. LLM Cost: 0. API Key ID: ${apiKeyIdToLog}.`);
-      } else {
-        // Scenario 2: Internal Key used OR NeuroSwitch Fallback occurred
-        console.log(`[API Chat] INTERNAL/FALLBACK: Provider: ${neuroSwitchActualProvider}, Model: ${neuroSwitchActualModel}. Fallback: ${neuroSwitchFallbackReason}. UserKeyFound: ${userApiKeyIdForActualProvider !== null}.`);
-        
-        const providerForCosting = neuroSwitchActualProvider.toLowerCase(); // Provider reported by NeuroSwitch
-        modelForCosting = neuroSwitchActualModel?.toLowerCase(); // Specific model reported by NeuroSwitch
-
+      if (userApiKeyIdForActualProvider && !neuroSwitchFallbackReason) { // SUCCESSFUL BYOAPI
+        llmProviderCost = 0;
+        apiKeyIdToLog = userApiKeyIdForActualProvider;
+        llmCostToChargeCredits = 0; // BYOAPI means no LLM cost to user
+        console.log(`[API Chat Cost] BYOAPI SUCCESS. LLM Cost to user: 0.`);
+      } else { // INTERNAL KEY OR FALLBACK
+        const providerForCosting = neuroSwitchActualProvider.toLowerCase();
+        modelForCosting = neuroSwitchActualModel?.toLowerCase();
+        // ... (default model assignment logic as before) ...
         if (!modelForCosting && providerForCosting) {
-          // Assign a default model id_string for accurate costing with internal keys if NeuroSwitch didn't specify one.
-          // Note: calculateLlmProviderCost performs its own internal mapping (e.g. gemini->google) if needed.
           if (providerForCosting === 'gemini') { modelForCosting = 'gemini-1.5-flash-latest'; }
           else if (providerForCosting === 'claude') { modelForCosting = 'claude-3-haiku-20240307'; }
           else if (providerForCosting === 'openai') { modelForCosting = 'gpt-4o-mini'; }
-          console.log(`[API Chat] INTERNAL/FALLBACK: Model for costing (defaulted): ${modelForCosting} for provider ${providerForCosting}`);
         }
 
-        if (modelForCosting) { // Ensure modelForCosting is defined before trying to calculate cost
+        if (modelForCosting) {
           llmProviderCost = await calculateLlmProviderCost(
-            providerForCosting, // Pass the direct provider name (e.g. "gemini", "claude")
-            modelForCosting,
-            promptTokens || 0,
-            completionTokens || 0
+            providerForCosting, modelForCosting, promptTokens || 0, completionTokens || 0
           );
-          console.log(`[API Chat] INTERNAL/FALLBACK: Cost: ${llmProviderCost}.`);
+          
+          if (userRole === 'tester' && internalApiCostPartOfTransactionCoveredByAllowance > 0) {
+            const costInCents = Math.round(llmProviderCost * 100);
+            if (costInCents <= internalApiCostPartOfTransactionCoveredByAllowance) {
+              llmCostToChargeCredits = 0; // Fully covered by allowance
+              console.log(`[API Chat Cost] Tester ${userId} LLM cost ($${llmProviderCost}) fully covered by internal API allowance.`);
+            } else {
+              llmCostToChargeCredits = (costInCents - internalApiCostPartOfTransactionCoveredByAllowance) / 100;
+              console.log(`[API Chat Cost] Tester ${userId} LLM cost ($${llmProviderCost}) partially covered. Charged to credits: $${llmCostToChargeCredits}. Allowance used: ${internalApiCostPartOfTransactionCoveredByAllowance/100}`);
+            }
+          } else {
+            llmCostToChargeCredits = llmProviderCost; // No allowance, or not a tester
+          }
         } else {
-          console.warn(`[API Chat] INTERNAL/FALLBACK: Cost calculation skipped. modelForCosting is undefined.`);
-          llmProviderCost = null; // Cost cannot be determined
+          llmProviderCost = null; // Cannot determine
+          llmCostToChargeCredits = 0; 
         }
-        // apiKeyIdToLog remains null for internal/fallback path
+        apiKeyIdToLog = null;
       }
     } else if (totalTokensForLog !== undefined && neuroSwitchActualProvider && neuroSwitchActualProvider.toLowerCase() === 'neuroswitch') {
-        console.log(`[API Chat] NeuroSwitch reported as actual provider. LLM cost assumed 0. NeuroSwitch Fee: ${neuroSwitchFeeToLog}`);
-        llmProviderCost = 0; 
+        llmProviderCost = 0; // Only NeuroSwitch fee applies
+        llmCostToChargeCredits = 0;
     } else {
-      console.warn(`[API Chat] Cost calculation skipped: totalTokensForLog is ${totalTokensForLog}, neuroSwitchActualProvider is ${neuroSwitchActualProvider}.`);
-      llmProviderCost = null;
+      llmProviderCost = null; // Cannot determine
+      llmCostToChargeCredits = 0;
     }
 
-    const totalCostToDeduct = (llmProviderCost || 0) + (neuroSwitchFeeToLog || 0);
-    if (totalCostToDeduct > 0) {
-      console.log(`[API Chat] Total cost to deduct: ${totalCostToDeduct}`);
-      await deductCreditsAndLog(userId, totalCostToDeduct, neuroSwitchActualProvider || 'unknown_provider', modelForCosting || neuroSwitchActualModel || 'unknown_model', totalTokensForLog || 0);
+    const totalCostToDeductFromCredits = llmCostToChargeCredits + neuroSwitchFeeToChargeCredits;
+
+    if (totalCostToDeductFromCredits > 0) {
+      // Final check before deducting, especially if pre-check was skipped or insufficient
+      const creditCheckResult = await pool.query('SELECT balance_cents FROM user_credits WHERE user_id = $1', [userId]);
+      const finalBalanceCents = creditCheckResult.rows.length > 0 ? creditCheckResult.rows[0].balance_cents : 0;
+
+      if (finalBalanceCents < Math.round(totalCostToDeductFromCredits * 100)) {
+        console.error(`[API Chat] CRITICAL: Insufficient final balance for user ${userId} to cover cost ${totalCostToDeductFromCredits}. Balance: ${finalBalanceCents/100}. Attempted deduction might fail or lead to negative balance without proper DB constraints.`);
+        // This ideally should have been caught by pre-checks.
+        // If not, the DB transaction for deduction might fail if balance_cents cannot go negative.
+        // For now, we proceed to attempt deduction, assuming DB handles negative constraints if any.
+        // Or, return an error here:
+        // return res.status(402).json({ error: 'Insufficient Credits', message: 'Your available balance is not enough to cover the cost of this operation.' });
+      }
+      
+      console.log(`[API Chat] Total cost to deduct from credits: $${totalCostToDeductFromCredits.toFixed(6)}`);
+      await deductCreditsAndLog(userId, totalCostToDeductFromCredits, neuroSwitchActualProvider || 'unknown_provider', modelForCosting || neuroSwitchActualModel || 'unknown_model', totalTokensForLog || 0);
     }
 
     // Determine the model string to log in the database
@@ -386,16 +550,16 @@ if (isProd && chatIdFromHeader) {
     await logUsage(
       userId,
       neuroSwitchActualProvider,
-      modelLoggedToDb || 'undefined', // Ensure we log something for the model column
+      modelLoggedToDb || 'undefined', 
       promptTokens,
       completionTokens,
       totalTokensForLog,
       responseTime,
       neuroSwitchFallbackReason,
-      llmProviderCost,
+      llmProviderCost, // Log the original LLM provider cost, regardless of allowance
       apiKeyIdToLog,
-      req.body.model,
-      neuroSwitchFeeToLog
+      req.body.model, // request_model from frontend
+      neuroSwitchFeeToLog // Log the original NeuroSwitch fee, regardless of allowance
     );
 
     res.json({
@@ -404,9 +568,16 @@ if (isProd && chatIdFromHeader) {
       provider: neuroSwitchActualProvider,
       model: neuroSwitchActualModel,
       tokens: data.token_usage || { total_tokens: data.tokens },
-      cost: llmProviderCost,
-      neuroswitch_fee: neuroSwitchFeeToLog,
-      timestamp: new Date().toISOString()
+      // Return the costs that were charged to credits for clarity to frontend if needed
+      cost_charged_to_credits: llmCostToChargeCredits,
+      neuroswitch_fee_charged_to_credits: neuroSwitchFeeToChargeCredits,
+      // Also return original costs before allowance for display/info
+      original_llm_cost: llmProviderCost,
+      original_neuroswitch_fee: neuroSwitchFeeToLog,
+      timestamp: new Date().toISOString(),
+      // Add tool information if provided by NeuroSwitch
+      tool_name: data.tool_name,
+      file_downloads: data.file_downloads
     });
 
   } catch (err: any) {

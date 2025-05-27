@@ -28,6 +28,11 @@ import modelsRouter from './routes/models';
 import userExternalApiKeysRouter from './routes/userExternalApiKeys';
 import adminApiRouter from './routes/adminApi/index';
 import { requireAdminRole } from './middleware/adminAuth';
+// import provisioningKeyRoutes from './routes/provisioningKeys'; // Commented out
+// import subscriptionRoutes from './routes/subscription';       // Commented out
+// import integrationsRoutes from './routes/integrations';       // Commented out
+// import providerRoutes from './routes/providers'; // Ensuring this is commented out
+// import usageLogRoutes from './routes/usageLogs'; // Ensuring this is commented out
 
 // Load environment variables
 dotenv.config();
@@ -156,6 +161,15 @@ app.use('/api/models', modelsRouter);
 
 // Mount admin routes
 app.use('/api/admin', verifyToken, requireAdminRole, adminApiRouter);
+
+// Mount new routes
+app.use('/api/user', verifyToken, userActivityRouter);
+// app.use('/api/providers', verifyToken, providerRoutes); // Commented out - router not defined due to missing file
+// app.use('/api/usage-logs', verifyToken, usageLogRoutes); // Commented out - router not defined due to missing file
+app.use('/api/user-api-keys', verifyToken, apiKeysRouter); // Corrected from userApiKeysRoutes
+// app.use('/api/provisioning-keys', verifyToken, provisioningKeyRoutes); // Commented out - router not defined due to missing file
+// app.use('/api/subscription', verifyToken, subscriptionRoutes);       // Commented out - router not defined due to missing file
+// app.use('/api/integrations', verifyToken, integrationsRoutes);       // Commented out - router not defined due to missing file
 
 // Serialize/Deserialize User
 passport.serializeUser((user: any, done) => {

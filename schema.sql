@@ -1,5 +1,5 @@
 -- Drop old tables if they exist (clean slate)
-DROP TABLE IF EXISTS admin_actions_logs;
+DROP TABLE IF EXISTS app_config;
 
 -- Users table
 CREATE TABLE users (
@@ -281,3 +281,47 @@ CREATE INDEX idx_admin_actions_logs_target_entity_id ON admin_actions_logs(targe
 CREATE INDEX idx_admin_actions_logs_timestamp ON admin_actions_logs(timestamp DESC);
 
 -- Consider adding other tables like feature_flags or platform_settings later as needed 
+
+-- Table for global application configuration settings
+CREATE TABLE IF NOT EXISTS app_config (
+    id SERIAL PRIMARY KEY,
+    key VARCHAR(255) UNIQUE NOT NULL,
+    value TEXT,
+    description TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Trigger for app_config to update updated_at timestamp
+-- (Reusing existing update_updated_at_column function if it's generic enough, 
+-- otherwise, create a specific one or ensure it's defined before this table)
+-- Assuming update_updated_at_column is suitable:
+CREATE TRIGGER update_app_config_updated_at
+    BEFORE UPDATE ON app_config
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- Initial default configuration values for usage limits
+-- Commenting out old generic limits (or they can be manually deleted/migrated)
+-- INSERT INTO app_config (key, value, description) VALUES
+--    ('internal_api_monthly_cost_limit_cents', '1000', 'Monthly internal API cost limit per user (excluding admins) in cents. Set to 0 for unlimited.'),
+--    ('neuroswitch_monthly_requests_limit', '1000', 'Monthly NeuroSwitch request limit per user (excluding admins). Set to 0 for unlimited.')
+-- ON CONFLICT (key) DO NOTHING;
+
+-- Role-specific free allowances - ONLY FOR TESTERS
+INSERT INTO app_config (key, value, description) VALUES
+    ('limit_internal_api_cost_cents_tester', '2000', 'TESTER: Monthly free internal API cost allowance (cents). 0 for unlimited.'),
+    ('limit_neuroswitch_requests_tester', '2000', 'TESTER: Monthly free NeuroSwitch request allowance. 0 for unlimited.')
+ON CONFLICT (key) DO UPDATE SET 
+    value = EXCLUDED.value,
+    description = EXCLUDED.description,
+    updated_at = CURRENT_TIMESTAMP;
+
+-- New settings for Pricing & Billing
+INSERT INTO app_config (key, value, description) VALUES
+    ('pricing_prime_percentage', '20', 'Global pricing prime percentage (e.g., 20 for 20%). Applied to LLM costs.'),
+    ('neuroswitch_classifier_fee_cents', '1', 'NeuroSwitch classifier fee in cents (e.g., 1 for $0.001, 10 for $0.01).')
+ON CONFLICT (key) DO UPDATE SET 
+    value = EXCLUDED.value,
+    description = EXCLUDED.description,
+    updated_at = CURRENT_TIMESTAMP; 

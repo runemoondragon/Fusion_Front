@@ -339,21 +339,24 @@ export default function Home() {
               <Link href="/privacy" className="font-mono text-[11px] tracking-wider hover:text-orange-500 transition-colors">
                 PRIVACY
               </Link>
-              {/* <Link 
+              <Link href="/terms" className="font-mono text-[11px] tracking-wider hover:text-orange-500 transition-colors">
+                TERMS
+              </Link>
+              <Link 
                 href="https://calendly.com/ken-bti/discovery" 
                 className="font-mono text-[11px] tracking-wider hover:text-orange-500 transition-colors"
                 target="_blank"
                 rel="noopener noreferrer"
               >
                 CONTACT
-              </Link> */}
+              </Link> 
               {/* Remove social links for now */}
-              {/* <Link href="https://www.linkedin.com/company/bti" className="font-mono text-[11px] tracking-wider hover:text-orange-500 transition-colors">
+               <Link href="https://www.linkedin.com/company/bti" className="font-mono text-[11px] tracking-wider hover:text-orange-500 transition-colors">
                 LINKEDIN
               </Link>
               <Link href="https://x.com/bti" className="font-mono text-[11px] tracking-wider hover:text-orange-500 transition-colors">
                 TWITTER
-              </Link> */}
+              </Link> 
             </div>
           </div>
         </div>

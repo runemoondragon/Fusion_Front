@@ -8,6 +8,13 @@ interface UserActivityMetrics {
   spend: number;
   tokens: number;
   requests: number;
+
+  // New monthly fields
+  currentMonthSpendNeuroSwitch: number;
+  currentMonthCallsNeuroSwitch: number;
+  currentMonthSpendInternalApi: number;
+  currentMonthCallsInternalApi: number;
+  currentMonthTotalTokens: number;
 }
 
 interface UserActivityLog {
@@ -88,10 +95,10 @@ router.get('/activity', verifyToken, async (req: Request, res: Response) => {
     // Add pagination params last
     activityQueryParams.push(limitNum, offset);
 
-    // Fetch Metrics
-    const metricsResult = await pool.query(
+    // Fetch Metrics for the selected date range (fromDate, toDate)
+    const overallMetricsResult = await pool.query(
       `SELECT
-         COALESCE(SUM(cost), 0) AS total_spend,
+         COALESCE(SUM(cost + neuroswitch_fee), 0) AS total_spend, -- Sum of LLM cost and NeuroSwitch fee
          COALESCE(SUM(total_tokens), 0) AS total_tokens,
          COUNT(*) AS total_requests
        FROM usage_logs
@@ -99,10 +106,53 @@ router.get('/activity', verifyToken, async (req: Request, res: Response) => {
       [userId, fromDate, toDate]
     );
 
+    // --- BEGIN: Fetch Current Month Metrics ---
+    const currentMonthBaseQueryConditions = `
+      user_id = $1
+      AND created_at >= date_trunc('month', CURRENT_TIMESTAMP AT TIME ZONE 'UTC')
+      AND created_at < date_trunc('month', CURRENT_TIMESTAMP AT TIME ZONE 'UTC') + interval '1 month'
+    `;
+
+    // Current Month - NeuroSwitch Classifier Usage
+    const monthlyNeuroSwitchUsageQuery = `
+      SELECT
+        COUNT(*) AS calls,
+        COALESCE(SUM(neuroswitch_fee), 0.0) AS total_cost_dollars
+      FROM usage_logs
+      WHERE neuroswitch_fee > 0 AND ${currentMonthBaseQueryConditions};
+    `;
+    const monthlyNeuroSwitchResult = await pool.query(monthlyNeuroSwitchUsageQuery, [userId]);
+
+    // Current Month - Internal API Calls Usage
+    const monthlyInternalApiUsageQuery = `
+      SELECT
+        COUNT(*) AS calls,
+        COALESCE(SUM(cost), 0.0) AS total_cost_dollars
+      FROM usage_logs
+      WHERE api_key_id IS NULL AND cost > 0 AND ${currentMonthBaseQueryConditions};
+    `;
+    const monthlyInternalApiResult = await pool.query(monthlyInternalApiUsageQuery, [userId]);
+
+    // Current Month - Total Tokens Processed
+    const monthlyTokensProcessedQuery = `
+      SELECT
+        COALESCE(SUM(total_tokens), 0) AS total_tokens
+      FROM usage_logs
+      WHERE ${currentMonthBaseQueryConditions};
+    `;
+    const monthlyTokensResult = await pool.query(monthlyTokensProcessedQuery, [userId]);
+    // --- END: Fetch Current Month Metrics ---
+
     const metrics: UserActivityMetrics = {
-      spend: parseFloat(metricsResult.rows[0].total_spend) || 0,
-      tokens: parseInt(metricsResult.rows[0].total_tokens, 10) || 0,
-      requests: parseInt(metricsResult.rows[0].total_requests, 10) || 0,
+      spend: parseFloat(overallMetricsResult.rows[0].total_spend) || 0,
+      tokens: parseInt(overallMetricsResult.rows[0].total_tokens, 10) || 0,
+      requests: parseInt(overallMetricsResult.rows[0].total_requests, 10) || 0,
+      
+      currentMonthSpendNeuroSwitch: parseFloat(monthlyNeuroSwitchResult.rows[0].total_cost_dollars) || 0,
+      currentMonthCallsNeuroSwitch: parseInt(monthlyNeuroSwitchResult.rows[0].calls, 10) || 0,
+      currentMonthSpendInternalApi: parseFloat(monthlyInternalApiResult.rows[0].total_cost_dollars) || 0,
+      currentMonthCallsInternalApi: parseInt(monthlyInternalApiResult.rows[0].calls, 10) || 0,
+      currentMonthTotalTokens: parseInt(monthlyTokensResult.rows[0].total_tokens, 10) || 0,
     };
 
     // Fetch Activity Logs (paginated)
