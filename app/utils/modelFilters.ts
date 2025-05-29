@@ -44,25 +44,25 @@ export const filterModels = (models: Model[], filters: ModelFilters): Model[] =>
     }
 
     // Modalities filter (if implemented in backend)
-    if (filters.modalities?.length > 0) {
+    if (filters.modalities && filters.modalities.length > 0) {
       // This will need to be implemented once backend supports modalities
       return true;
     }
 
     // Series filter (if implemented in backend)
-    if (filters.series?.length > 0) {
+    if (filters.series && filters.series.length > 0) {
       // This will need to be implemented once backend supports series
       return true;
     }
 
     // Categories filter (if implemented in backend)
-    if (filters.categories?.length > 0) {
+    if (filters.categories && filters.categories.length > 0) {
       // This will need to be implemented once backend supports categories
       return true;
     }
 
     // Parameters filter (if implemented in backend)
-    if (filters.parameters?.length > 0) {
+    if (filters.parameters && filters.parameters.length > 0) {
       // This will need to be implemented once backend supports parameters
       return true;
     }
