@@ -259,11 +259,11 @@ router.post('/', verifyToken, async (req: Request, res: Response) => {
 
   const isProd = process.env.NODE_ENV === 'production';
 
-let dbHistory: HistoryMessage[] = [];
+  let dbHistory: HistoryMessage[] = [];
 
 if (isProd && chatIdFromHeader) {
-  try {
-    const historyResult = await pool.query(
+    try {
+      const historyResult = await pool.query(
       `
       SELECT m.role, m.content
       FROM messages m

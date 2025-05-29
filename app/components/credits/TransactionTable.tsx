@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
-import axios from 'axios';
+// import axios from 'axios';
+import apiClient from '../../lib/apiClient'; // Import apiClient
 
 // Updated Transaction interface to match backend response
 interface Transaction {
@@ -24,34 +25,35 @@ const TransactionTable: React.FC = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoadingTransactions, setIsLoadingTransactions] = useState<boolean>(true);
   const [transactionsError, setTransactionsError] = useState<string | null>(null);
-  const [authToken, setAuthToken] = useState<string | null>(null);
+  // const [authToken, setAuthToken] = useState<string | null>(null); // Handled by apiClient
 
   const [currentPage, setCurrentPage] = React.useState(1);
   const transactionsPerPage = 5;
 
-  useEffect(() => {
-    const token = localStorage.getItem('auth_token');
-    setAuthToken(token);
-  }, []);
+  // useEffect(() => {
+  //   const token = localStorage.getItem('auth_token'); // Handled by apiClient
+  //   setAuthToken(token);
+  // }, []);
 
   useEffect(() => {
     const fetchTransactions = async () => {
-      if (!authToken) {
-        setTransactionsError('Authentication token not found. Please log in.');
-        setIsLoadingTransactions(false);
-        setTransactions([]);
-        return;
-      }
+      // if (!authToken) { // Handled by apiClient
+      //   setTransactionsError('Authentication token not found. Please log in.');
+      //   setIsLoadingTransactions(false);
+      //   setTransactions([]);
+      //   return;
+      // }
 
       setIsLoadingTransactions(true);
       setTransactionsError(null);
 
       try {
-        const response = await axios.get<Transaction[]>('/api/credits/transactions?type=payment', {
-          headers: {
-            Authorization: `Bearer ${authToken}`,
-          },
-        });
+        // const response = await axios.get<Transaction[]>('/api/credits/transactions?type=payment', { // Old call
+        //   headers: {
+        //     Authorization: `Bearer ${authToken}`,
+        //   },
+        // });
+        const response = await apiClient.get<Transaction[]>('/credits/transactions?type=payment'); // New call
         setTransactions(response.data);
       } catch (err: any) {
         console.error('Error fetching transactions:', err);
@@ -63,15 +65,15 @@ const TransactionTable: React.FC = () => {
       }
     };
 
-    if (authToken) {
-      fetchTransactions();
-    } else {
-      // No token, don't attempt to fetch
-      setIsLoadingTransactions(false);
-      setTransactions([]);
-      // setTransactionsError('Please log in to view transactions.'); // Optional message
-    }
-  }, [authToken]);
+    // if (authToken) { // apiClient handles token, so we can call directly
+    fetchTransactions();
+    // } else {
+    //   // No token, don't attempt to fetch
+    //   setIsLoadingTransactions(false);
+    //   setTransactions([]);
+    //   // setTransactionsError('Please log in to view transactions.'); // Optional message
+    // }
+  }, []); // Removed authToken dependency
 
   const indexOfLastTransaction = currentPage * transactionsPerPage;
   const indexOfFirstTransaction = indexOfLastTransaction - transactionsPerPage;

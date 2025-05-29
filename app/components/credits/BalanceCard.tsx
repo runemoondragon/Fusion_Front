@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { RefreshCcw, Info, Loader2 } from 'lucide-react';
-import axios from 'axios';
+// import axios from 'axios';
+import apiClient from '../../lib/apiClient'; // Import apiClient
 
 interface BalanceResponse {
   balance: string; // e.g., "123.4500"
@@ -18,30 +19,31 @@ const BalanceCard: React.FC = () => {
   const [balance, setBalance] = useState<string | null>(null);
   const [isLoadingBalance, setIsLoadingBalance] = useState<boolean>(true);
   const [balanceError, setBalanceError] = useState<string | null>(null);
-  const [authToken, setAuthToken] = useState<string | null>(null);
+  // const [authToken, setAuthToken] = useState<string | null>(null); // Handled by apiClient
 
-  useEffect(() => {
-    const token = localStorage.getItem('auth_token');
-    setAuthToken(token);
-  }, []);
+  // useEffect(() => {
+  //   const token = localStorage.getItem('auth_token'); // Handled by apiClient
+  //   setAuthToken(token);
+  // }, []);
 
   const fetchBalance = async () => {
-    if (!authToken) {
-      setBalanceError('Authentication token not found. Please log in.');
-      setIsLoadingBalance(false);
-      setBalance("0.00"); // Show 0 if not authenticated, or handle as preferred
-      return;
-    }
+    // if (!authToken) { // Handled by apiClient
+    //   setBalanceError('Authentication token not found. Please log in.');
+    //   setIsLoadingBalance(false);
+    //   setBalance("0.00"); 
+    //   return;
+    // }
 
     setIsLoadingBalance(true);
     setBalanceError(null);
 
     try {
-      const response = await axios.get<BalanceResponse>('/api/credits/balance', {
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-        },
-      });
+      // const response = await axios.get<BalanceResponse>('/api/credits/balance', { // Old call
+      //   headers: {
+      //     Authorization: `Bearer ${authToken}`,
+      //   },
+      // });
+      const response = await apiClient.get<BalanceResponse>('/credits/balance'); // New call
       if (response.data && typeof response.data.balance !== 'undefined') {
         // Assuming balance is a string like "123.4500"
         // Format to 2 decimal places for display, or keep as is if backend guarantees format
@@ -61,16 +63,16 @@ const BalanceCard: React.FC = () => {
   };
 
   useEffect(() => {
-    if (authToken) { // Fetch balance only if token is available
-      fetchBalance();
-    } else {
-      // Handle case where token might not be immediately available or user logs out
-      setBalance("0.00");
-      setIsLoadingBalance(false);
-      // setBalanceError("Please log in to see your balance."); // Optional: prompt to log in
-    }
+    // if (authToken) { // apiClient handles token, so we can call directly
+    fetchBalance();
+    // } else {
+    //   // Handle case where token might not be immediately available or user logs out
+    //   setBalance("0.00");
+    //   setIsLoadingBalance(false);
+    //   // setBalanceError("Please log in to see your balance."); // Optional: prompt to log in
+    // }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authToken]); // Re-fetch if authToken changes (e.g., after login)
+  }, []); // Removed authToken dependency
 
   const handleRefreshBalance = () => {
     fetchBalance(); // Re-trigger fetchBalance
@@ -84,7 +86,7 @@ const BalanceCard: React.FC = () => {
           <button
             onClick={handleRefreshBalance}
             className="text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={isLoadingBalance || !authToken}
+            disabled={isLoadingBalance /* || !authToken */} // authToken check no longer needed here
             title="Refresh balance"
           >
             {isLoadingBalance && !balanceError ? <Loader2 size={20} className="animate-spin" /> : <RefreshCcw size={20} />}

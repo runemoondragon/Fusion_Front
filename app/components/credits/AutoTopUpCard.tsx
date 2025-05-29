@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, ChangeEvent, FormEvent } from 'react';
-import axios from 'axios';
+// import axios from 'axios';
+import apiClient from '../../lib/apiClient'; // Import apiClient
 import StripeSetupForm from './StripeSetupForm';
 
 interface AutoTopupDetails {
@@ -32,15 +33,16 @@ const AutoTopUpCard: React.FC = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const token = localStorage.getItem('auth_token');
-      if (!token) {
-        setError('Authentication token not found.');
-        setIsLoading(false);
-        return;
-      }
-      const response = await axios.get<AutoTopupDetails>('/api/stripe/auto-topup-details', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      // const token = localStorage.getItem('auth_token'); // Handled by apiClient
+      // if (!token) {
+      //   setError('Authentication token not found.');
+      //   setIsLoading(false);
+      //   return;
+      // }
+      // const response = await axios.get<AutoTopupDetails>('/api/stripe/auto-topup-details', { // Old call
+      //   headers: { Authorization: `Bearer ${token}` },
+      // });
+      const response = await apiClient.get<AutoTopupDetails>('/stripe/auto-topup-details'); // New call
       setAutoTopupDetails(response.data);
       // Populate form state when details are fetched
       if (response.data?.hasPaymentMethod) {
@@ -74,16 +76,17 @@ const AutoTopUpCard: React.FC = () => {
     setSettingsError(null); // Clear settings error as well
 
     try {
-      const token = localStorage.getItem('auth_token');
-      if (!token) {
-        setError('Authentication token not found.'); // Or setSettingsError
-        setIsRemoving(false);
-        return;
-      }
-      await axios.post('/api/stripe/remove-payment-method', 
-        {},
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      // const token = localStorage.getItem('auth_token'); // Handled by apiClient
+      // if (!token) {
+      //   setError('Authentication token not found.'); // Or setSettingsError
+      //   setIsRemoving(false);
+      //   return;
+      // }
+      // await axios.post('/api/stripe/remove-payment-method', // Old call
+      //   {},
+      //   { headers: { Authorization: `Bearer ${token}` } }
+      // );
+      await apiClient.post('/stripe/remove-payment-method'); // New call
       fetchAutoTopupDetails(); // Refresh details, should show "Add Payment Method" state
     } catch (err: any) {
       console.error('Error removing payment method:', err);
@@ -116,20 +119,25 @@ const AutoTopUpCard: React.FC = () => {
     }
 
     try {
-      const token = localStorage.getItem('auth_token');
-      if (!token) {
-        setSettingsError('Authentication token not found.');
-        setIsSavingSettings(false);
-        return;
-      }
-      await axios.post('/api/stripe/update-auto-topup-settings', 
-        { 
-          isEnabled: isAutoTopupEnabled,
-          thresholdCents: isAutoTopupEnabled ? thresholdCents : null, // Send null if disabled, backend handles it
-          topupAmountCents: isAutoTopupEnabled ? topupAmountCents : null, // Send null if disabled
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      // const token = localStorage.getItem('auth_token'); // Handled by apiClient
+      // if (!token) {
+      //   setSettingsError('Authentication token not found.');
+      //   setIsSavingSettings(false);
+      //   return;
+      // }
+      // await axios.post('/api/stripe/update-auto-topup-settings', // Old call
+      //   { 
+      //     isEnabled: isAutoTopupEnabled,
+      //     thresholdCents: isAutoTopupEnabled ? thresholdCents : null, 
+      //     topupAmountCents: isAutoTopupEnabled ? topupAmountCents : null, 
+      //   },
+      //   { headers: { Authorization: `Bearer ${token}` } }
+      // );
+      await apiClient.post('/stripe/update-auto-topup-settings', { // New call
+        isEnabled: isAutoTopupEnabled,
+        thresholdCents: isAutoTopupEnabled ? thresholdCents : null,
+        topupAmountCents: isAutoTopupEnabled ? topupAmountCents : null,
+      });
       fetchAutoTopupDetails(); // Refresh to show updated settings
       // Optionally show a success message
     } catch (err: any) {

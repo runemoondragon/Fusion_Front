@@ -1,7 +1,7 @@
 'use client'
 
 import React, { createContext, useState, useEffect, useContext, useCallback, ReactNode } from 'react';
-import axios from 'axios';
+import apiClient from '../lib/apiClient'; // Import the centralized API client using relative path
 
 // Define the shape of the user profile data
 export interface UserProfile {
@@ -35,7 +35,7 @@ const getAuthToken = () => {
     return null;
 };
 
-const API_BASE_URL = '/api'; // Consistent with your settings page
+// The API_BASE_URL is now handled by apiClient.ts
 
 // Create the Provider component
 export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -53,9 +53,8 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
 
         try {
-            const response = await axios.get<UserProfile>(`${API_BASE_URL}/profile`, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
+            // apiClient will automatically use the correct baseURL and add the Authorization header
+            const response = await apiClient.get<UserProfile>('/profile');
             setUser(response.data);
         } catch (error) {
             console.error("UserContext: Failed to fetch user profile:", error);
