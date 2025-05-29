@@ -1,7 +1,8 @@
 'use client'
 
 import React, { useState, useEffect, useRef } from 'react'
-import axios from 'axios'
+// import axios from 'axios' // Will be replaced by apiClient
+import apiClient from '../../lib/apiClient'; // Import apiClient
 import { usePathname, useRouter } from 'next/navigation'
 import ChatSidebar from './ChatSidebar'
 import ChatWindow from './ChatWindow'
@@ -132,14 +133,12 @@ const ChatLayout: React.FC<ChatLayoutProps> = () => {
     const fetchChats = async () => {
       setIsLoadingChats(true)
       setErrorChats(null)
-      const token = localStorage.getItem('auth_token')
+      // const token = localStorage.getItem('auth_token')
       // If not authenticated (no token or no user from context after loading), don't fetch chats
       // This relies on the authStatus being updated from the useUser hook
-      if (!token || !authStatus) { 
-        if (!isLoadingUser && !user) { // Only set error if user loading is complete and no user
+      if (!authStatus && !isLoadingUser) { // Simpler check: if not authenticated (and user loading is done)
+        if (!user) { // Only set error if user loading is complete and no user
             setErrorChats('Please log in to view your chats.');
-        } else if (!token) {
-             setErrorChats('Authentication token not found. Please log in.');
         }
         setChatList([]); // Clear chat list if not authenticated
         setIsLoadingChats(false);
@@ -147,9 +146,10 @@ const ChatLayout: React.FC<ChatLayoutProps> = () => {
       }
 
       try {
-        const response = await axios.get<ChatSession[]>('/api/chats', {
-          headers: { Authorization: `Bearer ${token}` },
-        })
+        // const response = await axios.get<ChatSession[]>('/api/chats', { // Old call
+        //   headers: { Authorization: `Bearer ${token}` },
+        // })
+        const response = await apiClient.get<ChatSession[]>('/chats'); // New call
         setChatList(response.data)
       } catch (err: any) {
         console.error('Error fetching chats:', err)
@@ -175,13 +175,14 @@ const ChatLayout: React.FC<ChatLayoutProps> = () => {
     const fetchModels = async () => {
       try {
         // Assuming /api/models does not strictly require auth token, but sending if available
-        const token = localStorage.getItem('auth_token');
-        const headers: Record<string, string> = {};
-        if (token) {
-          headers['Authorization'] = `Bearer ${token}`;
-        }
+        // const token = localStorage.getItem('auth_token'); // Handled by apiClient if needed by the endpoint
+        // const headers: Record<string, string> = {};
+        // if (token) {
+        //   headers['Authorization'] = `Bearer ${token}`; // Handled by apiClient
+        // }
         // Expecting raw API response to have: id (numeric PK), name, id_string, provider, is_active
-        const response = await axios.get<any[]>('/api/models?is_active=true', { headers });
+        // const response = await axios.get<any[]>('/api/models?is_active=true', { headers }); // Old call
+        const response = await apiClient.get<any[]>('/models?is_active=true'); // New call
         
         const fetchedModels: AiModel[] = response.data
           .filter(rawModel => rawModel.is_active && typeof rawModel.id_string === 'string' && rawModel.id_string.trim() !== '')
@@ -245,17 +246,21 @@ const ChatLayout: React.FC<ChatLayoutProps> = () => {
 
   const handleUpdateChatTitle = async (chatId: number, newTitle: string) => {
     if (!authStatus) { openLoginModal(); return; }
-    const token = localStorage.getItem('auth_token');
-    if (!token) {
-      setErrorChats('Authentication required to update chat title.');
-      return;
-    }
+    // const token = localStorage.getItem('auth_token'); // Handled by apiClient
+    // if (!token) { // Handled by apiClient
+    //   setErrorChats('Authentication required to update chat title.');
+    //   return;
+    // }
 
     try {
-      const response = await axios.put<{ chat: ChatSession }>(
-        `/api/chats/${chatId}`,
-        { title: newTitle },
-        { headers: { Authorization: `Bearer ${token}` } }
+      // const response = await axios.put<{ chat: ChatSession }>( // Old call
+      //   `/api/chats/${chatId}`,
+      //   { title: newTitle },
+      //   { headers: { Authorization: `Bearer ${token}` } }
+      // );
+      const response = await apiClient.put<{ chat: ChatSession }>( // New call
+        `/chats/${chatId}`, 
+        { title: newTitle }
       );
 
       if (response.data && response.data.chat) {
@@ -281,16 +286,17 @@ const ChatLayout: React.FC<ChatLayoutProps> = () => {
 
   const handleDeleteChat = async (chatIdToDelete: number) => {
     if (!authStatus) { openLoginModal(); return; }
-    const token = localStorage.getItem('auth_token');
-    if (!token) {
-      setErrorChats('Authentication required to delete chat.');
-      return;
-    }
+    // const token = localStorage.getItem('auth_token'); // Handled by apiClient
+    // if (!token) { // Handled by apiClient
+    //   setErrorChats('Authentication required to delete chat.');
+    //   return;
+    // }
 
     try {
-      await axios.delete(`/api/chats/${chatIdToDelete}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      // await axios.delete(`/api/chats/${chatIdToDelete}`, { // Old call
+      //   headers: { Authorization: `Bearer ${token}` },
+      // });
+      await apiClient.delete(`/chats/${chatIdToDelete}`); // New call
 
       setChatList(prevChatList => prevChatList.filter(chat => chat.id !== chatIdToDelete));
 

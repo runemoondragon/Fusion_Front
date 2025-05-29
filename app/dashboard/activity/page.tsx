@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
+// import axios from 'axios'; // Will be replaced by apiClient
+import apiClient from '../../lib/apiClient'; // Import apiClient
 
 // --- Icon Components (can be moved to a separate file later) ---
 const RefreshIcon = () => (
@@ -124,15 +125,15 @@ export default function ActivityPage() {
 
   const [userApiKeys, setUserApiKeys] = useState<UserApiKey[]>([]);
 
-  const API_BASE_URL = '/api'; 
-  const getAuthToken = () => localStorage.getItem('auth_token');
+  // const API_BASE_URL = '/api'; // Handled by apiClient
+  // const getAuthToken = () => localStorage.getItem('auth_token'); // Handled by apiClient
 
   const fetchActivityData = useCallback(async (page = 1, filters = {}) => {
     setIsLoading(true);
     setError(null);
     try {
-      const token = getAuthToken();
-      if (!token) throw new Error('Authentication token not found.');
+      // const token = getAuthToken(); // Handled by apiClient
+      // if (!token) throw new Error('Authentication token not found.'); // Handled by apiClient
 
       const params: any = {
         from: fromDate,
@@ -147,10 +148,11 @@ export default function ActivityPage() {
       if (!params.model) delete params.model;
       if (!params.apiKeyId) delete params.apiKeyId;
 
-      const response = await axios.get<ActivityApiResponse>(`${API_BASE_URL}/user/activity`, {
-        headers: { Authorization: `Bearer ${token}` },
-        params,
-      });
+      // const response = await axios.get<ActivityApiResponse>(`${API_BASE_URL}/user/activity`, { // Old call
+      //   headers: { Authorization: `Bearer ${token}` },
+      //   params,
+      // });
+      const response = await apiClient.get<ActivityApiResponse>('/user/activity', { params }); // New call
 
       setMetrics(response.data.metrics);
       setActivityLogs(response.data.activity);
@@ -176,11 +178,12 @@ export default function ActivityPage() {
   useEffect(() => {
     const fetchKeys = async () => {
       try {
-        const token = getAuthToken();
-        if (!token) return;
-        const response = await axios.get<UserApiKey[]>(`${API_BASE_URL}/keys`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        // const token = getAuthToken(); // Handled by apiClient
+        // if (!token) return; // Handled by apiClient
+        // const response = await axios.get<UserApiKey[]>(`${API_BASE_URL}/keys`, { // Old call
+        //   headers: { Authorization: `Bearer ${token}` },
+        // });
+        const response = await apiClient.get<UserApiKey[]>('/keys'); // New call
         setUserApiKeys(response.data.filter(key => key.is_active !== false)); // Default to active keys or all if is_active undefined
       } catch (err) {
         console.error('Failed to fetch API keys for filter:', err);
@@ -265,11 +268,11 @@ export default function ActivityPage() {
     // If the above doesn't pass auth, an alternative (more complex for GET, but standard for POST-like downloads):
     const fetchAndDownload = async () => {
       try {
-        const token = getAuthToken();
-        if (!token) {
-            setError('Auth token not found for export. Please log in again.');
-            return;
-        }
+        // const token = getAuthToken(); // Handled by apiClient
+        // if (!token) { // Handled by apiClient
+        //     setError('Auth token not found for export. Please log in again.');
+        //     return;
+        // }
 
         // Construct query parameters for axios
         const queryParams: any = {
@@ -280,12 +283,16 @@ export default function ActivityPage() {
         if (filterModel) queryParams.model = filterModel;
         if (filterApiKeyId) queryParams.apiKeyId = filterApiKeyId;
 
-        const response = await axios.get<Blob>(`${API_BASE_URL}/user/activity/export`, {
-          headers: { Authorization: `Bearer ${token}` },
+        // const response = await axios.get<Blob>(`${API_BASE_URL}/user/activity/export`, { // Old call
+        //   headers: { Authorization: `Bearer ${token}` },
+        //   params: queryParams,
+        //   responseType: 'blob', 
+        // });
+        const response = await apiClient.get<Blob>('/user/activity/export', { // New call
           params: queryParams,
-          responseType: 'blob', // Important for file download
+          responseType: 'blob',
         });
-        const blob = new Blob([response.data], { type: response.headers['content-type'] || 'text/csv' });
+        const blob = new Blob([response.data], { type: response.headers['content-disposition'] || 'text/csv' });
         const link = document.createElement('a');
         link.href = window.URL.createObjectURL(blob);
         

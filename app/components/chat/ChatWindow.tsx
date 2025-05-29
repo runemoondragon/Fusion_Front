@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, ChangeEvent, FormEvent } from 'react';
-import axios from 'axios';
+// import axios from 'axios'; // Will be replaced by apiClient
+import apiClient from '../../lib/apiClient'; // Import apiClient
 import ReactMarkdown from 'react-markdown';
 import { PrismLight as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { atomDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
@@ -150,20 +151,21 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       setInput(''); // Clear input field as well
       // setTokensUsed(0); // Reset token usage for the loaded session
 
-      const token = localStorage.getItem('auth_token');
-      if (!token) {
-        // This case should ideally be handled globally, but good to have a local check
-        // setMessages([{ role: 'assistant', content: 'Authentication error: Cannot load chat.' }]);
-        console.error('ChatWindow: No auth token found, cannot load chat.');
-        setIsLoadingMessages(false);
-        if (textareaRef.current) textareaRef.current.focus(); // Focus even on error/return
-        return;
-      }
+      // const token = localStorage.getItem('auth_token'); // Handled by apiClient
+      // if (!token) { // Handled by apiClient
+      //   // This case should ideally be handled globally, but good to have a local check
+      //   // setMessages([{ role: 'assistant', content: 'Authentication error: Cannot load chat.' }]);
+      //   console.error('ChatWindow: No auth token found, cannot load chat.');
+      //   setIsLoadingMessages(false);
+      //   if (textareaRef.current) textareaRef.current.focus(); // Focus even on error/return
+      //   return;
+      // }
 
       try {
-        const response = await axios.get<FetchedChatSession>(`/api/chats/${chatId}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        // const response = await axios.get<FetchedChatSession>(`/api/chats/${chatId}`, { // Old call
+        //   headers: { Authorization: `Bearer ${token}` },
+        // });
+        const response = await apiClient.get<FetchedChatSession>(`/chats/${chatId}`); // New call
         const chatData = response.data;
         
         // Map FetchedMessage to Message if necessary, though structure might be compatible
@@ -220,14 +222,14 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     if (e) e.preventDefault();
     if (!input.trim() && !imageData) return;
 
-    const token = localStorage.getItem('auth_token');
-    if (!token) {
-      setMessages((prev) => [
-        ...prev,
-        { role: 'assistant', content: 'Authentication error: Please log in.', isError: true },
-      ]);
-      return;
-    }
+    // const token = localStorage.getItem('auth_token'); // Handled by apiClient
+    // if (!token) { // Handled by apiClient
+    //   setMessages((prev) => [
+    //     ...prev,
+    //     { role: 'assistant', content: 'Authentication error: Please log in.', isError: true },
+    //   ]);
+    //   return;
+    // }
 
     // Capture current input and image data *before* clearing for the payload
     const userMessageContent = input.trim();
@@ -325,22 +327,29 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
 
       // 2. Get response from AI Service (/api/chat)
-      const headers: Record<string, string> = {
-        Authorization: `Bearer ${token}` // Keep existing auth header
-      };
+      // const headers: Record<string, string> = { // Handled by apiClient, but X-Chat-ID needs to be passed if applicable
+      //   Authorization: `Bearer ${token}` 
+      // };
+      const requestConfig: { headers?: Record<string, string> } = {}; // Initialize with empty headers
 
       if (activeChatId !== null) {
-        headers['X-Chat-ID'] = activeChatId.toString();
+        // headers['X-Chat-ID'] = activeChatId.toString(); // Old way
+        requestConfig.headers = { 'X-Chat-ID': activeChatId.toString() }; // Add X-Chat-ID to apiClient call config
       }
       // If activeChatId is null, the X-Chat-ID header will be omitted.
       // The backend can use the absence of this header to identify a new chat.
 
-      const aiServiceRes = await axios.post<ApiResponseData>(
-        '/api/chat',
-        apiPayload, // Use the newly constructed payload
-        {
-          headers: headers // Pass the constructed headers object
-        }
+      // const aiServiceRes = await axios.post<ApiResponseData>( // Old call
+      //   '/api/chat',
+      //   apiPayload, 
+      //   {
+      //     headers: headers 
+      //   }
+      // );
+      const aiServiceRes = await apiClient.post<ApiResponseData>( // New call
+        '/chat', // Path relative to apiClient's baseURL
+        apiPayload,
+        requestConfig // Pass the config that may contain X-Chat-ID
       );
 
       const aiServiceData = aiServiceRes.data;
@@ -376,9 +385,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         };
 
         console.log('Saving to chat history:', saveHistoryPayload);
-        const historyRes = await axios.post<{ chat: ChatSession, message: string }>('/api/chats', saveHistoryPayload, {
-            headers: { Authorization: `Bearer ${token}` },
-        });
+        // const historyRes = await axios.post<{ chat: ChatSession, message: string }>('/api/chats', saveHistoryPayload, { // Old call
+        //     headers: { Authorization: `Bearer ${token}` },
+        // });
+        const historyRes = await apiClient.post<{ chat: ChatSession, message: string }>('/chats', saveHistoryPayload); // New call
 
         if (activeChatId === null && historyRes.data.chat) {
             console.log('New chat created on backend:', historyRes.data.chat);

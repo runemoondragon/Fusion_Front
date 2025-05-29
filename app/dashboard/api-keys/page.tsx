@@ -1,7 +1,8 @@
 'use client'
 
 import React, { useState, useEffect, useCallback, FormEvent } from 'react';
-import axios from 'axios';
+// import axios from 'axios'; // Will be replaced by apiClient
+import apiClient from '../../lib/apiClient'; // Import apiClient
 
 // Icon components (simple SVGs for now)
 const PlusIcon = () => (
@@ -94,19 +95,19 @@ export default function ApiKeysPage() {
   const [newlyCreatedKeyInfo, setNewlyCreatedKeyInfo] = useState<NewlyCreatedKeyInfo | null>(null);
   const [activityLogs, setActivityLogs] = useState<ApiKeyActivityLog[]>([]);
 
-  const API_BASE_URL = '/api'; // Or your Next.js API route prefix if different
-
-  const getAuthToken = () => localStorage.getItem('auth_token');
+  // const API_BASE_URL = '/api'; // Handled by apiClient
+  // const getAuthToken = () => localStorage.getItem('auth_token'); // Handled by apiClient
 
   const fetchApiKeys = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const token = getAuthToken();
-      if (!token) throw new Error('Authentication token not found.');
-      const response = await axios.get<ApiKey[]>(`${API_BASE_URL}/keys`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      // const token = getAuthToken(); // Handled by apiClient
+      // if (!token) throw new Error('Authentication token not found.'); // Handled by apiClient
+      // const response = await axios.get<ApiKey[]>(`${API_BASE_URL}/keys`, { // Old call
+      //   headers: { Authorization: `Bearer ${token}` },
+      // });
+      const response = await apiClient.get<ApiKey[]>('/keys'); // New call
       setApiKeys(response.data);
     } catch (err) {
       let errorMessage = 'An unexpected error occurred while fetching API keys.';
@@ -136,11 +137,14 @@ export default function ApiKeysPage() {
     setIsLoading(true);
     setError(null);
     try {
-      const token = getAuthToken();
-      if (!token) throw new Error('Authentication token not found.');
-      const response = await axios.post<ApiKey & { message: string }>(`${API_BASE_URL}/keys`, 
-        { name: createModalKeyName.trim() }, 
-        { headers: { Authorization: `Bearer ${token}` } }
+      // const token = getAuthToken(); // Handled by apiClient
+      // if (!token) throw new Error('Authentication token not found.'); // Handled by apiClient
+      // const response = await axios.post<ApiKey & { message: string }>(`${API_BASE_URL}/keys`, // Old call
+      //   { name: createModalKeyName.trim() }, 
+      //   { headers: { Authorization: `Bearer ${token}` } }
+      // );
+      const response = await apiClient.post<ApiKey & { message: string }>('/keys', // New call
+        { name: createModalKeyName.trim() } 
       );
       setNewlyCreatedKeyInfo({ name: response.data.name, apiKey: response.data.api_key, message: response.data.message });
       setShowFullKeyModalOpen(true);
@@ -170,11 +174,14 @@ export default function ApiKeysPage() {
     setIsLoading(true);
     setError(null);
     try {
-      const token = getAuthToken();
-      if (!token) throw new Error('Authentication token not found.');
-      await axios.put(`${API_BASE_URL}/keys/${selectedKey.id}`, 
-        { name: editModalKeyName.trim() }, 
-        { headers: { Authorization: `Bearer ${token}` } }
+      // const token = getAuthToken(); // Handled by apiClient
+      // if (!token) throw new Error('Authentication token not found.'); // Handled by apiClient
+      // await axios.put(`${API_BASE_URL}/keys/${selectedKey.id}`, // Old call
+      //   { name: editModalKeyName.trim() }, 
+      //   { headers: { Authorization: `Bearer ${token}` } }
+      // );
+      await apiClient.put(`/keys/${selectedKey.id}`, // New call
+        { name: editModalKeyName.trim() } 
       );
       setIsEditModalOpen(false);
       setSelectedKey(null);
@@ -199,11 +206,12 @@ export default function ApiKeysPage() {
     setIsLoading(true);
     setError(null);
     try {
-      const token = getAuthToken();
-      if (!token) throw new Error('Authentication token not found.');
-      await axios.delete(`${API_BASE_URL}/keys/${selectedKey.id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      // const token = getAuthToken(); // Handled by apiClient
+      // if (!token) throw new Error('Authentication token not found.'); // Handled by apiClient
+      // await axios.delete(`${API_BASE_URL}/keys/${selectedKey.id}`, { // Old call
+      //   headers: { Authorization: `Bearer ${token}` },
+      // });
+      await apiClient.delete(`/keys/${selectedKey.id}`); // New call
       setIsDeleteModalOpen(false);
       setSelectedKey(null);
       fetchApiKeys(); // Refresh list
@@ -226,13 +234,16 @@ export default function ApiKeysPage() {
     setIsLoading(true);
     setError(null);
     try {
-      const token = getAuthToken();
-      if (!token) throw new Error('Authentication token not found.');
+      // const token = getAuthToken(); // Handled by apiClient
+      // if (!token) throw new Error('Authentication token not found.'); // Handled by apiClient
       
       const newStatus = !key.is_active;
-      await axios.put(`${API_BASE_URL}/keys/${key.id}/status`, 
-        { isActive: newStatus }, 
-        { headers: { Authorization: `Bearer ${token}` } }
+      // await axios.put(`${API_BASE_URL}/keys/${key.id}/status`, // Old call
+      //   { isActive: newStatus }, 
+      //   { headers: { Authorization: `Bearer ${token}` } }
+      // );
+      await apiClient.put(`/keys/${key.id}/status`, // New call
+        { isActive: newStatus } 
       );
       // Refresh the list to show the updated status
       fetchApiKeys(); 
@@ -255,11 +266,12 @@ export default function ApiKeysPage() {
     setError(null);
     setActivityLogs([]);
     try {
-      const token = getAuthToken();
-      if (!token) throw new Error('Authentication token not found.');
-      const response = await axios.get<ApiKeyActivityLog[]>(`${API_BASE_URL}/keys/${keyId}/activity`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      // const token = getAuthToken(); // Handled by apiClient
+      // if (!token) throw new Error('Authentication token not found.'); // Handled by apiClient
+      // const response = await axios.get<ApiKeyActivityLog[]>(`${API_BASE_URL}/keys/${keyId}/activity`, { // Old call
+      //   headers: { Authorization: `Bearer ${token}` },
+      // });
+      const response = await apiClient.get<ApiKeyActivityLog[]>(`/keys/${keyId}/activity`); // New call
       setActivityLogs(response.data);
       setIsActivityModalOpen(true);
     } catch (err) {
@@ -286,18 +298,17 @@ export default function ApiKeysPage() {
     return new Date(dateString).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
   };
 
+  // Simplified Modal to avoid conflict if it's defined elsewhere or to reduce complexity if not needed now.
+  // If you have a global Modal component, import and use that instead.
   const Modal: React.FC<React.PropsWithChildren<{ isOpen: boolean; onClose: () => void; title: string }>> = ({ isOpen, onClose, title, children }) => {
     if (!isOpen) return null;
+    // Basic modal structure, enhance with your actual modal component or styling
     return (
-      <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex justify-center items-center z-50 p-4">
-        <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-xl font-semibold text-gray-900">{title}</h3>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
+      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+        <div style={{ background: 'white', padding: '20px', borderRadius: '8px', minWidth: '300px', maxWidth: '500px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 600 }}>{title}</h3>
+            <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer' }}>&times;</button>
           </div>
           {children}
         </div>
