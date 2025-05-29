@@ -1,7 +1,8 @@
 'use client'
 
 import React, { useState, useEffect, useRef } from 'react';
-import axios from 'axios';
+// import axios from 'axios'; // To be replaced by apiClient
+import apiClient from '../../lib/apiClient'; // Import apiClient
 import { useUser, UserProfile as GlobalUserProfile } from '../../contexts/UserContext'; // Adjusted import path
 
 // --- Icon Components (can be moved to a separate file later) ---
@@ -81,13 +82,13 @@ const defaultModelOptions = [
     { value: 'gemini', label: 'Gemini' },
 ];
 
-const API_BASE_URL = '/api'; // Define once
-const getAuthToken = () => {
-    if (typeof window !== 'undefined') {
-        return localStorage.getItem('auth_token');
-    }
-    return null;
-}
+// const API_BASE_URL = '/api'; // Define once // Handled by apiClient
+// const getAuthToken = () => { // Handled by apiClient
+//     if (typeof window !== 'undefined') {
+//         return localStorage.getItem('auth_token');
+//     }
+//     return null;
+// }
 
 export default function SettingsPage() {
   const [appSettings, setAppSettings] = useState<AppSettings | null>(null);
@@ -168,11 +169,11 @@ export default function SettingsPage() {
     // If token is not found by UserProvider, globalUser will be null.
     // We can check globalUser and isLoadingGlobalUser for page behavior.
 
-    const token = getAuthToken();
-    if (!token && !isLoadingGlobalUser) { // If no token and global user loading is done
-        setError("Authentication token not found. Please log in.");
-        setIsLoadingPageData(false); // Ensure page loading state is also false
-    }
+    // const token = getAuthToken(); // Handled by apiClient
+    // if (!token && !isLoadingGlobalUser) { // If no token and global user loading is done
+    //     setError("Authentication token not found. Please log in.");
+    //     setIsLoadingPageData(false); // Ensure page loading state is also false
+    // }
 
   }, [isLoadingGlobalUser]); // Rerun if global user loading state changes
 
@@ -220,11 +221,7 @@ export default function SettingsPage() {
         }
         return;
     }
-    const token = getAuthToken();
-    if (!token) {
-        setError("Authentication token not found. Please log in.");
-        return;
-    }
+    // const token = getAuthToken(); // Handled by apiClient
     setSuccessMessage(null);
     setError(null);
 
@@ -236,10 +233,15 @@ export default function SettingsPage() {
         formData.append('avatar', selectedAvatarFile);
         try {
             // The backend response UserProfile should match GlobalUserProfile
-            const avatarResponse = await axios.post<{ message: string; user: GlobalUserProfile }>(
-                `${API_BASE_URL}/profile/avatar`,
-                formData,
-                { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' } }
+            // const avatarResponse = await axios.post<{ message: string; user: GlobalUserProfile }>( // Old call
+            //     `${API_BASE_URL}/profile/avatar`,
+            //     formData,
+            //     { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' } }
+            // );
+            const avatarResponse = await apiClient.post<{ message: string; user: GlobalUserProfile }>( // New call
+                '/profile/avatar', // Path relative to apiClient's base URL
+                formData
+                // apiClient handles token; axios handles FormData Content-Type
             );
             newAvatarUrl = avatarResponse.data.user.avatarUrl;
             profileUpdated = true;
@@ -258,10 +260,15 @@ export default function SettingsPage() {
     if (editableDisplayName !== globalUser.displayName || profileUpdated) {
         try {
             // Backend response UserProfile should match GlobalUserProfile
-            await axios.put<{ message: string; user: GlobalUserProfile }>(
-                `${API_BASE_URL}/profile`, 
-                { displayName: editableDisplayName }, 
-                { headers: { Authorization: `Bearer ${token}` } }
+            // await axios.put<{ message: string; user: GlobalUserProfile }>( // Old call
+            //     `${API_BASE_URL}/profile`, 
+            //     { displayName: editableDisplayName }, 
+            //     { headers: { Authorization: `Bearer ${token}` } }
+            // );
+            await apiClient.put<{ message: string; user: GlobalUserProfile }>( // New call
+                '/profile', 
+                { displayName: editableDisplayName }
+                // apiClient handles token
             );
             // No need to set local userProfile state here. The global refresh will handle it.
             profileUpdated = true;
@@ -325,20 +332,25 @@ export default function SettingsPage() {
         return;
     }
 
-    const token = getAuthToken();
-    if (!token) {
-      setPasswordChangeError("Authentication token not found. Please log in again.");
-      return;
-    }
+    // const token = getAuthToken(); // Handled by apiClient
+    // if (!token) { // Handled by apiClient
+    //   setPasswordChangeError("Authentication token not found. Please log in again.");
+    //   return;
+    // }
 
     try {
       interface ChangePasswordSuccessResponse {
         message: string;
       }
-      const passwordChangeResponse = await axios.put<ChangePasswordSuccessResponse>(
-        `${API_BASE_URL}/profile/change-password`,
-        { currentPassword, newPassword },
-        { headers: { Authorization: `Bearer ${token}` } }
+      // const passwordChangeResponse = await axios.put<ChangePasswordSuccessResponse>( // Old call
+      //   `${API_BASE_URL}/profile/change-password`,
+      //   { currentPassword, newPassword },
+      //   { headers: { Authorization: `Bearer ${token}` } }
+      // );
+      const passwordChangeResponse = await apiClient.put<ChangePasswordSuccessResponse>( // New call
+        '/profile/change-password',
+        { currentPassword, newPassword }
+        // apiClient handles token
       );
       setPasswordChangeSuccess(passwordChangeResponse.data.message || "Password changed successfully!");
       setCurrentPassword('');
@@ -399,7 +411,7 @@ export default function SettingsPage() {
   );
 
   // Check if critical data (app settings or user profile) is missing after loading attempts
-  if (!appSettings || (!globalUser && !isLoadingGlobalUser && getAuthToken())) { // Check globalUser, but allow if loading or no token (handled by error state)
+  if (!appSettings || (!globalUser && !isLoadingGlobalUser && typeof window !== 'undefined' && !localStorage.getItem('auth_token'))) {
     return (
         <div className="p-4 md:p-8 space-y-8 bg-gray-50 min-h-screen">
             {renderMessages()} {/* Show errors like "Token not found" */}
