@@ -3,6 +3,17 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, CartesianGrid
 } from 'recharts';
 
+// Define an interface for the chart data entries
+interface ChartDataEntry {
+  date: string;
+  [modelName: string]: string | number; // Index signature for dynamic model keys
+}
+
+// Define an interface for the categoryMap
+interface CategoryMap {
+  [modelName: string]: string; // Index signature for model names mapping to categories
+}
+
 const categories = [
   'All Categories',
   'Roleplay',
@@ -21,7 +32,7 @@ const categories = [
 
 // Generate mock data for 12 months, 6 categories
 const models = ['Claude', 'GPT-4', 'Gemini', 'Llama', 'Qwen', 'Mistral'];
-const categoryMap = {
+const categoryMap: CategoryMap = { // Apply the CategoryMap interface
   Claude: 'Roleplay',
   'GPT-4': 'Programming',
   Gemini: 'Science',
@@ -35,7 +46,7 @@ const months = [
 ];
 
 const mockData = months.map((month, i) => {
-  const entry = { date: month };
+  const entry: ChartDataEntry = { date: month }; // Apply the ChartDataEntry interface
   models.forEach(model => {
     // Simulate growth and some randomness
     entry[model] = Math.round((i + 1) * 100 + Math.random() * 100) * (1 + Math.random());
