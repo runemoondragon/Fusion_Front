@@ -16,6 +16,7 @@ const ModelsPage: React.FC = () => {
     series: [],
     categories: [],
     parameters: [],
+    showActiveOnly: false,
   });
 
   useEffect(() => {
