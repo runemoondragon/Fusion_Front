@@ -3,6 +3,7 @@
 import React, { useEffect, useState, Fragment } from 'react';
 import { useUser } from '@/app/contexts/UserContext';
 import { Dialog, Transition, Switch } from '@headlessui/react';
+import apiClient from '@/app/lib/apiClient';
 
 interface AdminModel {
   id: number;
@@ -27,8 +28,6 @@ export default function AdminModelsPage() {
   const [pageLoading, setPageLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { user: adminUser, isLoadingUser } = useUser();
-  const [authToken, setAuthToken] = useState<string | null>(null);
-  const [isTokenChecked, setIsTokenChecked] = useState(false);
 
   // Edit Modal States
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -40,33 +39,15 @@ export default function AdminModelsPage() {
   const [editModalLoading, setEditModalLoading] = useState(false);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setAuthToken(localStorage.getItem('auth_token'));
-      setIsTokenChecked(true);
-    }
-  }, []);
-
-  useEffect(() => {
     const fetchModels = async () => {
-      if (!authToken) {
-        setPageLoading(false);
-        setError("Authentication token not found during fetch attempt.");
-        return;
-      }
       try {
         setPageLoading(true);
         setError(null);
-        const response = await fetch('/api/admin/models', {
-          headers: { 'Authorization': `Bearer ${authToken}` },
-        });
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || `Failed to fetch models: ${response.statusText}`);
-        }
-        const data: AdminModel[] = await response.json();
+        const response = await apiClient.get<AdminModel[]>('/admin/models');
+        const data: AdminModel[] = response.data;
         setModels(data);
       } catch (err: any) {
-        setError(err.message);
+        setError(err.response?.data?.error || err.message || 'Failed to fetch models');
       } finally {
         setPageLoading(false);
       }
@@ -76,22 +57,14 @@ export default function AdminModelsPage() {
       return;
     }
 
-    if (!adminUser || adminUser.role !== 'admin') {
+    if (adminUser && adminUser.role === 'admin') {
+      setError(null);
+      fetchModels();
+    } else {
       setPageLoading(false);
-      setError("Access Denied. You must be an admin to view this page.");
-      return;
+      setError("Access Denied. You must be an admin to view this page or your session may have expired.");
     }
-
-    if (isTokenChecked) {
-      if (authToken) {
-        setError(null);
-        fetchModels();
-      } else {
-        setPageLoading(false);
-        setError("Authentication token missing. Please re-login.");
-      }
-    }
-  }, [adminUser, isLoadingUser, authToken, isTokenChecked]);
+  }, [adminUser, isLoadingUser]);
 
   const openEditModal = (model: AdminModel) => {
     setSelectedModel(model);
@@ -103,8 +76,8 @@ export default function AdminModelsPage() {
   };
 
   const handleModalSubmit = async () => {
-    if (!selectedModel || !authToken) {
-      setEditModalError('Selected model or token is missing.');
+    if (!selectedModel) {
+      setEditModalError('Selected model is missing.');
       return;
     }
     const parsedInputCost = parseFloat(inputCost);
@@ -132,23 +105,12 @@ export default function AdminModelsPage() {
     console.log('[AdminModelsPage] Request body for PUT:', JSON.stringify(requestBody, null, 2));
 
     try {
-      const response = await fetch(`/api/admin/models/${selectedModel.id}`,
-        {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${authToken}`,
-          },
-          body: JSON.stringify(requestBody),
-        }
+      const response = await apiClient.put<{model: AdminModel}>(
+        `/admin/models/${selectedModel.id}`,
+        requestBody
       );
-      const responseData = await response.json();
-      if (!response.ok) {
-        console.error('[AdminModelsPage] Error response from PUT:', responseData);
-        throw new Error(responseData.error || `Failed to update model configuration: ${response.statusText}`);
-      }
-      
-      const updatedModelFromServer = responseData.model as AdminModel;
+      const responseData = response.data;
+      const updatedModelFromServer = responseData.model;
       console.log("[AdminModelsPage] Full response data (updatedModelFromServer) from PUT:", JSON.stringify(updatedModelFromServer, null, 2));
 
       setModels(prevModels => {

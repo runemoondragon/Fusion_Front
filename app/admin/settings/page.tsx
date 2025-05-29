@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
+// import axios from 'axios'; // To be replaced by apiClient
+import apiClient from '@/app/lib/apiClient'; // Import apiClient
 
 interface AppConfigEntry {
   key: string;
@@ -11,7 +12,7 @@ interface AppConfigEntry {
 }
 
 // Helper to get the auth token
-const getAuthToken = () => localStorage.getItem('auth_token');
+// const getAuthToken = () => localStorage.getItem('auth_token'); // Handled by apiClient
 
 const GENERAL_CONFIG_KEYS = ['limit_internal_api_cost_cents_tester', 'limit_neuroswitch_requests_tester'];
 const PRICING_CONFIG_KEYS = ['pricing_prime_percentage', 'neuroswitch_classifier_fee_cents'];
@@ -26,18 +27,19 @@ export default function AdminSettingsPage() {
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  const API_BASE_URL = '/api';
+  // const API_BASE_URL = '/api'; // Handled by apiClient
 
   const fetchConfig = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     setSuccessMessage(null);
     try {
-      const token = getAuthToken();
-      if (!token) throw new Error('Authentication token not found.');
-      const response = await axios.get<AppConfigEntry[]>(`${API_BASE_URL}/admin/config`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      // const token = getAuthToken(); // Handled by apiClient
+      // if (!token) throw new Error('Authentication token not found.'); // apiClient handles this
+      // const response = await axios.get<AppConfigEntry[]>(`${API_BASE_URL}/admin/config`, { // Old call
+      //   headers: { Authorization: `Bearer ${token}` },
+      // });
+      const response = await apiClient.get<AppConfigEntry[]>('/admin/config'); // New call
       
       const allConfigs = response.data;
       setGeneralConfigs(allConfigs.filter(c => GENERAL_CONFIG_KEYS.includes(c.key)));
@@ -77,16 +79,17 @@ export default function AdminSettingsPage() {
     setError(null);
     setSuccessMessage(null);
     try {
-      const token = getAuthToken();
-      if (!token) throw new Error('Authentication token not found.');
+      // const token = getAuthToken(); // Handled by apiClient
+      // if (!token) throw new Error('Authentication token not found.'); // apiClient handles this
 
       // Combine all config groups before sending
       const allConfigsToSave = [...generalConfigs, ...pricingConfigs, ...otherConfigs];
       const payload = allConfigsToSave.map(({ key, value }) => ({ key, value }));
 
-      await axios.put(`${API_BASE_URL}/admin/config`, payload, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      // await axios.put(`${API_BASE_URL}/admin/config`, payload, { // Old call
+      //   headers: { Authorization: `Bearer ${token}` },
+      // });
+      await apiClient.put('/admin/config', payload); // New call
       setSuccessMessage('Configuration saved successfully!');
       // Re-fetch to ensure data consistency, especially if descriptions change or keys are added/removed by another admin
       await fetchConfig(); 

@@ -4,6 +4,7 @@ import React, { useEffect, useState, Fragment, useCallback } from 'react';
 import { useUser } from '@/app/contexts/UserContext';
 import { Dialog, Transition } from '@headlessui/react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
+import apiClient from '@/app/lib/apiClient';
 
 interface AdminLog {
   id: number;
@@ -26,6 +27,12 @@ interface PaginationInfo {
   limit: number;
 }
 
+// Define the expected response structure for the logs endpoint
+interface AdminLogsResponse {
+  logs: AdminLog[];
+  pagination: PaginationInfo;
+}
+
 // Define some common action types - ideally, these could come from a shared enum/const with backend
 const ACTION_TYPES = [
     'USER_ROLE_UPDATED',
@@ -42,7 +49,6 @@ export default function AdminLogsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { user: adminUser, isLoadingUser } = useUser();
-  const [authToken, setAuthToken] = useState<string | null>(null);
 
   // Filters State
   const searchParams = useSearchParams();
@@ -63,18 +69,7 @@ export default function AdminLogsPage() {
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [selectedLogDetails, setSelectedLogDetails] = useState<any>(null);
 
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setAuthToken(localStorage.getItem('auth_token'));
-    }
-  }, []);
-
   const fetchLogs = useCallback(async (currentFilters: Record<string, string>) => {
-    if (!authToken) {
-      setLoading(false);
-      setError("Authentication token not found.");
-      return;
-    }
     setLoading(true);
     setError(null);
 
@@ -85,40 +80,35 @@ export default function AdminLogsPage() {
     query.set('limit', '20'); // Or make this configurable
 
     try {
-      const response = await fetch(`/api/admin/logs?${query.toString()}`, {
-        headers: { 'Authorization': `Bearer ${authToken}` },
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `Failed to fetch logs: ${response.statusText}`);
-      }
-      const data = await response.json();
+      const response = await apiClient.get<AdminLogsResponse>(`/admin/logs?${query.toString()}`);
+      const data = response.data;
       setLogs(data.logs);
       setPagination(data.pagination);
     } catch (err: any) {
-      setError(err.message);
+      setError(err.response?.data?.error || err.message || 'Failed to fetch logs');
       setLogs([]);
       setPagination(null);
     } finally {
       setLoading(false);
     }
-  }, [authToken]);
+  }, []);
 
   useEffect(() => {
-    if (!isLoadingUser && adminUser && adminUser.role === 'admin' && authToken) {
+    if (isLoadingUser) return; // Wait for user context to load
+
+    if (adminUser && adminUser.role === 'admin') {
         const currentFiltersFromUrl: Record<string, string> = {};
         searchParams.forEach((value, key) => { currentFiltersFromUrl[key] = value; });
         if (!currentFiltersFromUrl.page) currentFiltersFromUrl.page = '1'; // ensure page is set
         setFilters(currentFiltersFromUrl); // Sync state with URL on initial load/nav
+        setError(null); // Clear previous errors
         fetchLogs(currentFiltersFromUrl);
-    } else if (!isLoadingUser && (!adminUser || adminUser.role !== 'admin')) {
+    } else {
+      // This implies user is not an admin, or adminUser is null (e.g. token issue detected by UserContext)
       setLoading(false);
-      setError("Access Denied.");
-    } else if (!isLoadingUser && !authToken && adminUser) {
-        setLoading(false);
-        setError("Authentication token missing, please re-login.");
+      setError("Access Denied. You must be an admin to view this page or your session may have expired.");
     }
-  }, [adminUser, isLoadingUser, authToken, searchParams, fetchLogs]);
+  }, [adminUser, isLoadingUser, searchParams, fetchLogs]); // Removed authToken from dependencies
 
   const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFilters(prev => ({ ...prev, [e.target.name]: e.target.value, page: '1' })); // Reset to page 1 on filter change

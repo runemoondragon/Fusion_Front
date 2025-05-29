@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useContext, Fragment } from 'react';
 import { useUser, UserProfile } from '@/app/contexts/UserContext'; // Corrected import
 import { Dialog, Transition } from '@headlessui/react'; // Using Headless UI for modal
+import apiClient from '@/app/lib/apiClient'; // Import apiClient
 
 interface AdminUser {
   id: number;
@@ -14,6 +15,12 @@ interface AdminUser {
   balance_cents: number | null;
 }
 
+// Define the expected response structure for the credit adjustment endpoint
+interface AdjustCreditsResponse {
+  new_balance_cents: number;
+  // Potentially other fields like user_id, message, etc.
+}
+
 const VALID_ROLES = ['admin', 'pro', 'user', 'tester'];
 
 export default function AdminUsersPage() {
@@ -21,9 +28,6 @@ export default function AdminUsersPage() {
   const [pageLoading, setPageLoading] = useState(true); // Renamed from 'loading' to avoid conflict with context's loading
   const [error, setError] = useState<string | null>(null);
   const { user: adminUserProfile, isLoadingUser, fetchUserProfile } = useUser(); // Corrected usage
-  const [authToken, setAuthToken] = useState<string | null>(null);
-  const [isTokenChecked, setIsTokenChecked] = useState(false);
-
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
   const [selectedUserForRole, setSelectedUserForRole] = useState<AdminUser | null>(null);
   const [newRole, setNewRole] = useState<string>('');
@@ -39,36 +43,15 @@ export default function AdminUsersPage() {
   const [creditModalLoading, setCreditModalLoading] = useState(false);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-        const token = localStorage.getItem('auth_token');
-        setAuthToken(token);
-        setIsTokenChecked(true);
-    }
-  }, []);
-
-  useEffect(() => {
     const fetchUsers = async () => {
-      if (!authToken) {
-        setPageLoading(false);
-        setError("Authentication token not found during fetch attempt.");
-        return;
-      }
       try {
         setPageLoading(true);
         setError(null);
-        const response = await fetch('/api/admin/users', {
-          headers: {
-            'Authorization': `Bearer ${authToken}`,
-          },
-        });
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || `Failed to fetch users: ${response.statusText}`);
-        }
-        const data = await response.json();
+        const response = await apiClient.get<AdminUser[]>('/admin/users');
+        const data = response.data;
         setUsers(data);
       } catch (err: any) {
-        setError(err.message);
+        setError(err.response?.data?.error || err.message || 'Failed to fetch users');
       } finally {
         setPageLoading(false);
       }
@@ -78,22 +61,14 @@ export default function AdminUsersPage() {
       return;
     }
 
-    if (!adminUserProfile || adminUserProfile.role !== 'admin') {
+    if (adminUserProfile && adminUserProfile.role === 'admin') {
+      setError(null);
+      fetchUsers();
+    } else {
       setPageLoading(false);
-      setError("Access Denied. You must be an admin to view this page.");
-      return;
+      setError("Access Denied. You must be an admin to view this page or your session may have expired.");
     }
-
-    if (isTokenChecked) {
-      if (authToken) {
-        setError(null);
-        fetchUsers();
-      } else {
-        setPageLoading(false);
-        setError("Authentication token missing. Please re-login.");
-      }
-    }
-  }, [adminUserProfile, isLoadingUser, authToken, isTokenChecked]);
+  }, [adminUserProfile, isLoadingUser]);
 
   const openChangeRoleModal = (user: AdminUser) => {
     setSelectedUserForRole(user);
@@ -104,8 +79,8 @@ export default function AdminUsersPage() {
   };
 
   const handleRoleChangeSubmit = async () => {
-    if (!selectedUserForRole || !newRole || !authToken) {
-      setRoleModalError('Selected user, new role, or token is missing.');
+    if (!selectedUserForRole || !newRole) {
+      setRoleModalError('Selected user or new role is missing.');
       return;
     }
     if (newRole === selectedUserForRole.role) {
@@ -115,23 +90,14 @@ export default function AdminUsersPage() {
     setRoleModalLoading(true);
     setRoleModalError(null);
     try {
-      const response = await fetch(`/api/admin/users/${selectedUserForRole.id}/role`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`,
-        },
-        body: JSON.stringify({ role: newRole, summary: roleChangeSummary }),
+      const response = await apiClient.put(`/admin/users/${selectedUserForRole.id}/role`, {
+        role: newRole, summary: roleChangeSummary
       });
-      const responseData = await response.json(); 
-      if (!response.ok) {
-        throw new Error(responseData.error || `Failed to update role: ${response.statusText}`);
-      }
       setUsers(users.map(u => u.id === selectedUserForRole.id ? { ...u, role: newRole } : u));
       setIsRoleModalOpen(false);
       setSelectedUserForRole(null);
     } catch (err: any) {
-      setRoleModalError(err.message);
+      setRoleModalError(err.response?.data?.error || err.message || 'Failed to update role');
     } finally {
       setRoleModalLoading(false);
     }
@@ -146,8 +112,8 @@ export default function AdminUsersPage() {
   };
 
   const handleCreditAdjustmentSubmit = async () => {
-    if (!selectedUserForCredit || !authToken) {
-      setCreditModalError('Selected user or token is missing.');
+    if (!selectedUserForCredit) {
+      setCreditModalError('Selected user is missing.');
       return;
     }
     const amount = parseInt(creditAmountCents, 10);
@@ -168,23 +134,16 @@ export default function AdminUsersPage() {
     setCreditModalError(null);
 
     try {
-      const response = await fetch(`/api/admin/users/${selectedUserForCredit.id}/adjust-credits`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`,
-        },
-        body: JSON.stringify({ amount_cents: amount, reason: creditReason }),
-      });
-      const responseData = await response.json();
-      if (!response.ok) {
-        throw new Error(responseData.error || `Failed to adjust credits: ${response.statusText}`);
-      }
+      const response = await apiClient.post<AdjustCreditsResponse>(
+        `/admin/users/${selectedUserForCredit.id}/adjust-credits`,
+        { amount_cents: amount, reason: creditReason }
+      );
+      const responseData: AdjustCreditsResponse = response.data;
       setUsers(users.map(u => u.id === selectedUserForCredit.id ? { ...u, balance_cents: responseData.new_balance_cents } : u));
       setIsCreditModalOpen(false);
       setSelectedUserForCredit(null);
     } catch (err: any) {
-      setCreditModalError(err.message);
+      setCreditModalError(err.response?.data?.error || err.message || 'Failed to adjust credits');
     } finally {
       setCreditModalLoading(false);
     }
