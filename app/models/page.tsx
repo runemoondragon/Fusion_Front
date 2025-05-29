@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import apiClient from "../lib/apiClient";
 import ModelCard from "../components/models/ModelCard";
 import ModelTable from "../components/models/ModelTable";
 import ModelsSidebar from "../components/models/ModelsSidebar";
@@ -22,11 +23,8 @@ export default function ModelsPage() {
   useEffect(() => {
     const fetchModels = async () => {
       try {
-        const response = await fetch('/api/models');
-        if (!response.ok) {
-          throw new Error('Failed to fetch models');
-        }
-        const data = await response.json();
+        const response = await apiClient.get<Model[]>('/models');
+        const data = response.data;
         setModels(data);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An error occurred');

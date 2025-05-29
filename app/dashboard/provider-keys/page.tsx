@@ -1,7 +1,8 @@
 'use client'
 
 import React, { useState, useEffect, useCallback, FormEvent } from 'react';
-import axios from 'axios';
+// import axios from 'axios'; // Will be replaced by apiClient
+import apiClient from '../../lib/apiClient'; // Import apiClient
 
 // --- Icon Components ---
 const PlusIcon = () => (
@@ -57,14 +58,14 @@ const PROVIDER_OPTIONS = [
   // Add more as supported by NeuroSwitch and desired by users
 ];
 
-const API_BASE_URL = '/api'; 
+// const API_BASE_URL = '/api'; // Handled by apiClient
 
-const getAuthToken = () => {
-  if (typeof window !== 'undefined') {
-    return localStorage.getItem('auth_token');
-  }
-  return null;
-};
+// const getAuthToken = () => { // Handled by apiClient
+//   if (typeof window !== 'undefined') {
+//     return localStorage.getItem('auth_token');
+//   }
+//   return null;
+// };
 
 // --- AddProviderKeyForm Component ---
 interface AddProviderKeyFormProps {
@@ -149,28 +150,23 @@ const AddProviderKeyForm: React.FC<AddProviderKeyFormProps> = ({ isLoadingExtern
 
 export default function ProviderKeysPage() {
   const [savedKeys, setSavedKeys] = useState<ProviderApiKey[]>([]);
-  const [isLoading, setIsLoading] = useState(false); // Global loading for page actions (fetch, delete, add submit)
-  const [error, setError] = useState<string | null>(null); // Global error for page
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false); // New state for edit modal
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   
   const [selectedKeyToDelete, setSelectedKeyToDelete] = useState<ProviderApiKey | null>(null);
-  const [selectedKeyToEdit, setSelectedKeyToEdit] = useState<ProviderApiKey | null>(null); // New state for key being edited
-  const [editModalKeyName, setEditModalKeyName] = useState<string>(''); // New state for edit modal input
+  const [selectedKeyToEdit, setSelectedKeyToEdit] = useState<ProviderApiKey | null>(null);
+  const [editModalKeyName, setEditModalKeyName] = useState<string>('');
 
   const fetchSavedKeys = useCallback(async () => {
     setIsLoading(true);
     setError(null);
-    // setSuccessMessage(null); // Clear success only when initiating a new fetch, not on every page action
     try {
-      const token = getAuthToken();
-      if (!token) throw new Error('Authentication token not found.');
-      const response = await axios.get<ProviderApiKey[]>(`${API_BASE_URL}/external-keys`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const response = await apiClient.get<ProviderApiKey[]>('/external-keys'); // New call
       setSavedKeys(response.data);
     } catch (err) {
       const errorAsAny = err as any;
@@ -180,33 +176,27 @@ export default function ProviderKeysPage() {
     } finally {
       setIsLoading(false);
     }
-  }, []); // Empty dependency array means fetchSavedKeys is stable
+  }, []);
 
   useEffect(() => {
     fetchSavedKeys();
-  }, [fetchSavedKeys]); // Runs once on mount due to stable fetchSavedKeys
+  }, [fetchSavedKeys]);
 
   const handleAddKeySubmit = async (formProviderName: string, formKeyName: string, formApiKey: string) => {
-    setIsLoading(true); // Use global isLoading for the submission process
+    setIsLoading(true);
     setError(null);
     setSuccessMessage(null);
     try {
-      const token = getAuthToken();
-      if (!token) throw new Error('Authentication token not found.'); // This error will be caught by AddProviderKeyForm
-      
-      await axios.post(`${API_BASE_URL}/external-keys`, 
-        { provider_name: formProviderName, api_key: formApiKey, key_name: formKeyName },
-        { headers: { Authorization: `Bearer ${token}` } }
+      await apiClient.post('/external-keys', // New call
+        { provider_name: formProviderName, api_key: formApiKey, key_name: formKeyName }
       );
-      
       setSuccessMessage(`API Key '${formKeyName}' for ${formProviderName} added successfully.`);
       setIsAddModalOpen(false);
-      fetchSavedKeys(); // Refresh the list
+      fetchSavedKeys();
     } catch (err) {
       const errorAsAny = err as any;
       const message = errorAsAny.response?.data?.error || errorAsAny.message || 'Failed to add API key.';
-      // setError(message); // Let the form display this specific error. Global error is for other things.
-      throw new Error(message); // Throw error so AddProviderKeyForm can catch and display it
+      throw new Error(message);
     } finally {
       setIsLoading(false);
     }
@@ -218,43 +208,36 @@ export default function ProviderKeysPage() {
     setError(null);
     setSuccessMessage(null);
     try {
-      const token = getAuthToken();
-      if (!token) throw new Error('Authentication token not found.');
-      
-      await axios.delete(`${API_BASE_URL}/external-keys/${selectedKeyToDelete.id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
+      await apiClient.delete(`/external-keys/${selectedKeyToDelete.id}`); // New call
       setSuccessMessage(`API Key '${selectedKeyToDelete.key_name}' deleted successfully.`);
       setIsDeleteModalOpen(false);
       setSelectedKeyToDelete(null);
-      fetchSavedKeys(); // Refresh list
+      fetchSavedKeys();
     } catch (err) {
       const errorAsAny = err as any;
       const message = errorAsAny.response?.data?.error || errorAsAny.message || 'Failed to delete API key.';
-      setError(message); // Set global error for delete failures
+      setError(message);
     } finally {
       setIsLoading(false);
     }
   };
 
   const openAddModal = () => {
-    setError(null); // Clear global error when opening modal
+    setError(null);
     setSuccessMessage(null);
-    // No need to set form states here anymore
     setIsAddModalOpen(true);
   };
 
   const openDeleteModal = (key: ProviderApiKey) => {
     setSelectedKeyToDelete(key);
-    setError(null); // Clear global error
+    setError(null);
     setSuccessMessage(null);
     setIsDeleteModalOpen(true);
   };
 
   const openEditModal = (key: ProviderApiKey) => {
     setSelectedKeyToEdit(key);
-    setEditModalKeyName(key.key_name); // Pre-fill with current name
+    setEditModalKeyName(key.key_name);
     setError(null);
     setSuccessMessage(null);
     setIsEditModalOpen(true);
@@ -263,29 +246,24 @@ export default function ProviderKeysPage() {
   const handleEditKeyNameSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!selectedKeyToEdit || !editModalKeyName.trim()) {
-      setError('Key name cannot be empty or no key selected for editing.'); // Or set modal-specific error
+      setError('Key name cannot be empty or no key selected for editing.');
       return;
     }
     setIsLoading(true);
     setError(null);
     setSuccessMessage(null);
     try {
-      const token = getAuthToken();
-      if (!token) throw new Error('Authentication token not found.');
-      
-      await axios.put(`${API_BASE_URL}/external-keys/${selectedKeyToEdit.id}`, 
-        { key_name: editModalKeyName.trim() },
-        { headers: { Authorization: `Bearer ${token}` } }
+      await apiClient.put(`/external-keys/${selectedKeyToEdit.id}`, // New call
+        { key_name: editModalKeyName.trim() }
       );
-      
       setSuccessMessage(`API Key '${editModalKeyName.trim()}' updated successfully.`);
       setIsEditModalOpen(false);
       setSelectedKeyToEdit(null);
-      fetchSavedKeys(); // Refresh the list
+      fetchSavedKeys();
     } catch (err) {
       const errorAsAny = err as any;
       const message = errorAsAny.response?.data?.error || errorAsAny.message || 'Failed to update API key name.';
-      setError(message); // Set global error, or could be modal-specific
+      setError(message);
     } finally {
       setIsLoading(false);
     }
@@ -293,33 +271,16 @@ export default function ProviderKeysPage() {
 
   const handleToggleKeyStatus = async (keyToToggle: ProviderApiKey) => {
     if (!keyToToggle) return;
-    
     setIsLoading(true);
     setError(null);
     setSuccessMessage(null);
-    
     const newStatus = !keyToToggle.is_active;
-
     try {
-      const token = getAuthToken();
-      if (!token) throw new Error('Authentication token not found.');
-      
-      await axios.put(`${API_BASE_URL}/external-keys/${keyToToggle.id}/status`, 
-        { isActive: newStatus },
-        { headers: { Authorization: `Bearer ${token}` } }
+      await apiClient.put(`/external-keys/${keyToToggle.id}/status`, // New call
+        { isActive: newStatus }
       );
-      
       setSuccessMessage(`Key '${keyToToggle.key_name}' ${newStatus ? 'activated' : 'deactivated'} successfully.`);
-      // Option 1: Full refresh (simpler)
       fetchSavedKeys();
-
-      // Option 2: Update local state (snappier UI, more complex)
-      // setSavedKeys(prevKeys => 
-      //   prevKeys.map(k => 
-      //     k.id === keyToToggle.id ? { ...k, is_active: newStatus, updated_at: new Date().toISOString() } : k
-      //   )
-      // );
-
     } catch (err) {
       const errorAsAny = err as any;
       const message = errorAsAny.response?.data?.error || errorAsAny.message || 'Failed to update key status.';
@@ -392,7 +353,7 @@ export default function ProviderKeysPage() {
         </button>
       </div>
       
-      {isLoading && savedKeys.length === 0 && !isAddModalOpen && ( // ensure loading message doesn't show if modal is open and also loading
+      {isLoading && savedKeys.length === 0 && !isAddModalOpen && (
          <div className="p-6 text-center"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div><p className="mt-2 text-gray-600">Loading Provider Keys...</p></div>
       )}
 
@@ -420,7 +381,7 @@ export default function ProviderKeysPage() {
               </div>
               <div className="flex-shrink-0 flex items-center space-x-2 md:ml-4">
                 <button 
-                  onClick={() => handleToggleKeyStatus(key)} // Wire up Activate/Deactivate button
+                  onClick={() => handleToggleKeyStatus(key)}
                   className={`text-sm p-1.5 rounded flex items-center transition-colors ${
                     key.is_active 
                       ? 'text-yellow-600 hover:text-yellow-800 hover:bg-yellow-50' 
@@ -433,7 +394,7 @@ export default function ProviderKeysPage() {
                   {key.is_active ? 'Deactivate' : 'Activate'}
                 </button>
                 <button 
-                  onClick={() => openEditModal(key)} // Wire up Edit button
+                  onClick={() => openEditModal(key)}
                   className="text-sm text-gray-600 hover:text-gray-800 flex items-center p-1.5 rounded hover:bg-gray-100 transition-colors" 
                   title="Edit Key Name"
                   disabled={isLoading}
@@ -467,7 +428,7 @@ export default function ProviderKeysPage() {
 
       {/* Add Key Modal - Now uses AddProviderKeyForm */}
       <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="Add New Provider API Key">
-        {isAddModalOpen && ( /* Conditionally render form to reset its state when modal reopens */
+        {isAddModalOpen && (
           <AddProviderKeyForm
             isLoadingExternally={isLoading}
             onAddKey={handleAddKeySubmit}
@@ -492,7 +453,6 @@ export default function ProviderKeysPage() {
                 autoFocus
               />
             </div>
-            {/* Consider adding a specific error display for this modal if global 'error' is too broad */}
             {error && <p className="text-red-500 text-sm mb-3">{error}</p>} 
             <div className="flex justify-end space-x-3 mt-6">
               <button type="button" onClick={() => setIsEditModalOpen(false)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg">Cancel</button>
@@ -507,7 +467,7 @@ export default function ProviderKeysPage() {
       {/* Delete Key Modal */}
       <Modal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} title="Confirm Deletion">
         <p className="text-gray-600 mb-4">Are you sure you want to delete the API key "<span className="font-semibold">{selectedKeyToDelete?.key_name}</span>" for provider <span className="font-semibold">{selectedKeyToDelete?.provider_name}</span>? This action cannot be undone.</p>
-        {error && <p className="text-red-500 text-sm mb-3">{error}</p> /* Show global error in delete modal if relevant */}
+        {error && <p className="text-red-500 text-sm mb-3">{error}</p>}
         <div className="flex justify-end space-x-3">
           <button type="button" onClick={() => setIsDeleteModalOpen(false)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg">Cancel</button>
           <button onClick={handleDeleteKey} disabled={isLoading} className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg disabled:opacity-50">
