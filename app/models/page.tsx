@@ -17,7 +17,11 @@ export default function ModelsPage() {
     features: [],
     contextRange: [4000, 2000000],
     priceRange: [0, 10],
-    showActiveOnly: false,
+    showActiveOnly: false, // ✅ Fixes the error
+    modalities: [],
+    series: [],
+    categories: [],
+    parameters: [],
   });
 
   useEffect(() => {
