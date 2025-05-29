@@ -9,6 +9,7 @@ export interface User {
   email?: string;       // From users table
   name?: string;        // display_name from users table
   role?: string;        // Added role
+  stripe_customer_id?: string | null; // Added stripe_customer_id
   // Add other relevant fields from your 'users' table that might be needed globally
   // For example: role, is_active, etc.
 }
