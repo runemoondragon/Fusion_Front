@@ -1,114 +1,30 @@
-'use client'
+import React, { Suspense } from 'react';
+import VerifyEmailClientContent from './VerifyEmailClientContent'; // Import the new client component
 
-import React, { useEffect, useState } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
-import Link from 'next/link';
-
+// This main page component can remain a Server Component or be a Client Component if needed for other reasons,
+// but the part using client-side hooks is now deferred.
 export default function VerifyEmailPage() {
-  const searchParams = useSearchParams();
-  const router = useRouter();
-  const token = searchParams.get('token');
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <VerifyEmailClientContent />
+    </Suspense>
+  );
+}
 
-  const [status, setStatus] = useState<'verifying' | 'success' | 'error' | 'idle'>('idle');
-  const [message, setMessage] = useState('');
-
-  useEffect(() => {
-    if (token) {
-      setStatus('verifying');
-      setMessage('Verifying your email, please wait...');
-      
-      const verifyToken = async () => {
-        try {
-          // It's often better to send the token in the body for the actual verification POST request
-          const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/auth/verify-email`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ token }),
-          });
-          
-          const data = await response.json();
-
-          if (response.ok && data.success) {
-            setStatus('success');
-            setMessage(data.message || 'Email successfully verified! You can now log in.');
-          } else {
-            setStatus('error');
-            setMessage(data.error || 'Invalid or expired verification link. Please try again or request a new one.');
-          }
-        } catch (error) {
-          setStatus('error');
-          setMessage('An unexpected error occurred during verification. Please try again later.');
-          console.error('Email verification error:', error);
-        }
-      };
-
-      verifyToken();
-    } else {
-      setStatus('error');
-      setMessage('No verification token found. Please use the link provided in your email. If you need a new link, please try signing up again or use the resend option if available at login.');
-    }
-  }, [token]);
-
+// A simple loading fallback component
+const LoadingFallback = () => {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-neutral-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8 bg-white p-8 sm:p-10 rounded-xl shadow-lg">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-neutral-900">
-            Email Verification
-          </h2>
-        </div>
-        
-        {status === 'verifying' && (
-          <div className="text-center">
-            <svg className="animate-spin h-8 w-8 text-orange-600 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            <p className="mt-3 text-center text-sm text-neutral-600">{message}</p>
-          </div>
-        )}
-
-        {status === 'success' && (
-          <div className="text-center">
-            <svg className="h-12 w-12 text-green-500 mx-auto" fill="none" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" stroke="currentColor">
-              <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-            </svg>
-            <p className="mt-3 text-center text-md font-medium text-green-700">{message}</p>
-            <div className="mt-6">
-              <Link href="/login" className="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700 md:py-3 md:text-lg md:px-10 transition-colors">
-                Proceed to Login
-              </Link>
-            </div>
-          </div>
-        )}
-
-        {status === 'error' && (
-           <div className="text-center">
-            <svg className="h-12 w-12 text-red-500 mx-auto" fill="none" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" stroke="currentColor">
-                <path d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-            </svg>
-            <p className="mt-3 text-center text-md font-medium text-red-700">{message}</p>
-            <div className="mt-6 space-y-3">
-              <Link href="/" className="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700 md:py-3 md:text-lg md:px-10 transition-colors">
-                Go to Homepage
-              </Link>
-               {/* You might want to conditionally show a signup link or a login link if user wants to try resending from there */}
-            </div>
-          </div>
-        )}
-         {status === 'idle' && !token && (
-             <div className="text-center">
-                <p className="mt-3 text-center text-md font-medium text-neutral-600">{message}</p>
-                 <div className="mt-6">
-                    <Link href="/" className="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700 md:py-3 md:text-lg md:px-10 transition-colors">
-                        Go to Homepage
-                    </Link>
-                </div>
-            </div>
-        )}
+      <div className="max-w-md w-full space-y-8 bg-white p-8 sm:p-10 rounded-xl shadow-lg text-center">
+        <h2 className="mt-6 text-center text-3xl font-extrabold text-neutral-900">
+          Email Verification
+        </h2>
+        <svg className="animate-spin h-8 w-8 text-orange-600 mx-auto mt-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <p className="mt-3 text-center text-sm text-neutral-600">Loading verification status...</p>
       </div>
     </div>
   );
-} 
+}; 
