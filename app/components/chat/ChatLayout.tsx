@@ -6,7 +6,7 @@ import apiClient from '../../lib/apiClient'; // Import apiClient
 import { usePathname, useRouter } from 'next/navigation'
 import ChatSidebar from './ChatSidebar'
 import ChatWindow from './ChatWindow'
-import { UserCircle, Settings2, LogOut, User as UserIcon, ChevronDown, ChevronRight } from 'lucide-react'
+import { UserCircle, Settings2, LogOut, User as UserIcon, ChevronDown, ChevronRight, Menu, X } from 'lucide-react'
 import { useUser } from '../../contexts/UserContext'
 import AuthModal from '../auth/AuthModal'
 
@@ -35,7 +35,8 @@ interface ChatLayoutProps {
 }
 
 const ChatLayout: React.FC<ChatLayoutProps> = () => {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true) // Default open on desktop
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false) // Default closed on mobile
+  const [isManualScrolling, setIsManualScrolling] = useState(false) // Track if user is scrolling manually
 
   const [chatList, setChatList] = useState<ChatSession[]>([])
   const [activeChatId, setActiveChatId] = useState<number | null>(null)
@@ -73,6 +74,7 @@ const ChatLayout: React.FC<ChatLayoutProps> = () => {
   const pathname = usePathname();
   const router = useRouter();
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const sidebarRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!isLoadingUser) {
@@ -90,12 +92,53 @@ const ChatLayout: React.FC<ChatLayoutProps> = () => {
         setIsModelDropdownOpen(false);
         setExpandedProvider(null); // Also collapse any open sub-menus
       }
+      // Close sidebar if click is outside on mobile
+      if (
+        sidebarRef.current && 
+        !sidebarRef.current.contains(event.target as Node) &&
+        window.innerWidth < 768 && // Only close if on mobile
+        isSidebarOpen
+      ) {
+        setIsSidebarOpen(false);
+      }
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [dropdownRef, modelDropdownRef]);
+  }, [dropdownRef, modelDropdownRef, sidebarRef, isSidebarOpen]);
+
+  // Handle scroll detection
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsManualScrolling(true);
+      
+      // Reset after user stops scrolling for 1 second
+      if (scrollTimeout.current) {
+        clearTimeout(scrollTimeout.current);
+      }
+      scrollTimeout.current = setTimeout(() => {
+        setIsManualScrolling(false);
+      }, 1000);
+    };
+    
+    const chatContainer = document.querySelector('.chat-messages-container');
+    if (chatContainer) {
+      chatContainer.addEventListener('scroll', handleScroll);
+    }
+    
+    return () => {
+      if (chatContainer) {
+        chatContainer.removeEventListener('scroll', handleScroll);
+      }
+      if (scrollTimeout.current) {
+        clearTimeout(scrollTimeout.current);
+      }
+    };
+  }, []);
+  
+  // Ref for the scroll timeout
+  const scrollTimeout = useRef<NodeJS.Timeout | null>(null);
 
   const handleLogout = () => {
     clearUser();
@@ -105,6 +148,11 @@ const ChatLayout: React.FC<ChatLayoutProps> = () => {
 
   const openLoginModal = () => {
     setAuthModalView('login');
+    setIsAuthModalOpen(true);
+  };
+  
+  const openSignupModal = () => {
+    setAuthModalView('signup');
     setIsAuthModalOpen(true);
   };
   
@@ -210,6 +258,10 @@ const ChatLayout: React.FC<ChatLayoutProps> = () => {
     console.log('Creating new chat session (client-side)...')
     setActiveChatId(null)
     setSelectedModel(getDefaultModel()); // Reset to default model for new chat
+    // Close sidebar on mobile after selecting a chat
+    if (window.innerWidth < 768) {
+      setIsSidebarOpen(false);
+    }
   }
 
   const handleSelectChat = (chatId: number) => {
@@ -226,6 +278,10 @@ const ChatLayout: React.FC<ChatLayoutProps> = () => {
       setSelectedModel(selectedChat.ui_selected_provider);
     } else {
       setSelectedModel(getDefaultModel()); // Fallback to global default if not set on chat
+    }
+    // Close sidebar on mobile after selecting a chat
+    if (window.innerWidth < 768) {
+      setIsSidebarOpen(false);
     }
   }
 
@@ -394,10 +450,44 @@ const ChatLayout: React.FC<ChatLayoutProps> = () => {
     setExpandedProvider(prev => prev === providerKey ? null : providerKey);
   };
 
+  // Handle mobile viewport height
+  useEffect(() => {
+    // Fix for mobile viewport height
+    const appHeight = () => {
+      const doc = document.documentElement;
+      doc.style.setProperty('--app-height', `${window.innerHeight}px`);
+    };
+    
+    window.addEventListener('resize', appHeight);
+    window.addEventListener('orientationchange', appHeight);
+    
+    // Initial call
+    appHeight();
+    
+    return () => {
+      window.removeEventListener('resize', appHeight);
+      window.removeEventListener('orientationchange', appHeight);
+    };
+  }, []);
+
   return (
     <>
-    <div className="flex h-screen bg-neutral-20 relative"> 
-      <div className="fixed top-0 left-0 h-screen md:flex flex-col w-64 bg-gray-150 border-r border-neutral-150 z-30">
+    <div className="flex h-screen w-full bg-neutral-20 relative overflow-hidden"> 
+      {/* Mobile sidebar overlay - appears when sidebar is open on mobile */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/30 z-30 md:hidden" 
+          onClick={() => setIsSidebarOpen(false)}
+        ></div>
+      )}
+      
+      {/* Sidebar - slides in/out on mobile, always visible on md+ */}
+      <div 
+        ref={sidebarRef}
+        className={`fixed top-0 left-0 h-screen w-full md:w-64 transform transition-transform duration-300 ease-in-out z-40 ${
+          isSidebarOpen ? 'translate-x-0' : 'translate-x-[-100%] md:translate-x-0'
+        }`}
+      >
         <ChatSidebar 
           rooms={roomsForSidebar} 
           activeRoomId={activeChatId ? activeChatId.toString() : null}
@@ -409,106 +499,115 @@ const ChatLayout: React.FC<ChatLayoutProps> = () => {
           error={errorChats}
           isUserAuth={authStatus}
           onLoginClick={openLoginModal}
+          onClose={() => setIsSidebarOpen(false)}
         />
       </div>
 
-      <div className="flex-1 flex flex-col md:ml-64">
-        {/* Main Chat Window Area - Now relative for floating controls */}
-        <main className="flex-1 flex flex-col overflow-hidden bg-gray-100 relative">
-          {/* Floating Controls Container */}
-          <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between p-3 pr-6"> {/* Increased z-index for dropdown */}
-            {/* Left Side: Model Dropdown & Status */}
-            <div className="ml-0 flex items-center space-x-2" ref={modelDropdownRef}>
-              <div className="relative">
-                <button
-                  onClick={() => setIsModelDropdownOpen(!isModelDropdownOpen)}
-                  className="flex items-center justify-between w-auto min-w-[150px] text-sm py-1.5 px-3 border border-gray-300 rounded-md shadow-sm bg-white bg-opacity-90 backdrop-blur-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                >
-                  <span>{getSelectedModelDisplayName()}</span>
-                  <ChevronDown className={`ml-2 h-4 w-4 text-gray-500 transition-transform ${isModelDropdownOpen ? 'rotate-180' : ''}`} />
-                </button>
-                {isModelDropdownOpen && (
-                  <div className="absolute left-0 mt-1 w-64 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none py-1 z-30"> {/* Higher z-index for dropdown content */}
-                    {/* NeuroSwitch Option */}
-                    <button
-                      onClick={() => handleModelSelect('neuroswitch')}
-                      className={`w-full text-left px-3 py-2 text-sm flex items-center ${selectedModel === 'neuroswitch' ? 'bg-orange-100 text-orange-700' : 'text-gray-700 hover:bg-gray-100'}`}
-                    >
-                      NeuroSwitch
-                    </button>
+      {/* Main content area: Added overflow-x-hidden and padding for desktop */}
+      <div className="flex-1 flex flex-col md:ml-64 overflow-x-hidden md:pr-4">
+        <main className="flex-1 flex flex-col overflow-hidden bg-gray-100 relative w-full">
+          {/* Header: Adjusted padding and height */}
+          <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-2 md:px-6 py-2 bg-white/90 backdrop-blur-sm shadow-sm h-16">
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                className="p-2 rounded-md md:hidden h-10 w-10 flex items-center justify-center min-w-10 min-h-10"
+                aria-label="Toggle menu"
+              >
+                {isSidebarOpen ? (
+                  <X className="h-6 w-6 text-gray-700" />
+                ) : (
+                  <Menu className="h-6 w-6 text-gray-700" />
+                )}
+              </button>
+              
+              <div className="ml-0 flex items-center space-x-2" ref={modelDropdownRef}>
+                <div className="relative">
+                  <button
+                    onClick={() => setIsModelDropdownOpen(!isModelDropdownOpen)}
+                    className="flex items-center justify-between w-auto min-w-[120px] sm:min-w-[150px] text-sm py-2 px-3 border border-gray-300 rounded-md shadow-sm bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 h-10 min-h-10"
+                  >
+                    <span className="truncate">{getSelectedModelDisplayName()}</span>
+                    <ChevronDown className={`ml-1 sm:ml-2 h-4 w-4 text-gray-500 transition-transform ${isModelDropdownOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                  {isModelDropdownOpen && (
+                    <div className="absolute left-0 mt-1 w-full max-w-xs sm:w-72 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none py-1 z-30">
+                      <button
+                        onClick={() => handleModelSelect('neuroswitch')}
+                        className={`w-full text-left px-3 py-2.5 text-base flex items-center h-10 min-h-10 ${selectedModel === 'neuroswitch' ? 'bg-orange-100 text-orange-700' : 'text-gray-700 hover:bg-gray-100'}`}
+                      >
+                        NeuroSwitch
+                      </button>
 
-                    {/* Providers and their models */}
-                    {Object.entries(groupedModels).map(([providerKey, providerModels]) => {
-                      if (providerModels.length === 0 && providerKey !== 'openai' && providerKey !== 'claude' && providerKey !== 'gemini') { // Ensure we always render the known provider headers even if models fail to load, but hide if no models and not a core provider.
-                          return null; 
-                      }
-                      const providerName = providerKey.charAt(0).toUpperCase() + providerKey.slice(1);
-                      
-                      return (
-                        <div key={providerKey}>
-                          <button
-                            onClick={() => toggleProviderSubmenu(providerKey)}
-                            className="w-full text-left px-3 py-2 text-sm font-medium text-gray-800 hover:bg-gray-100 flex justify-between items-center"
-                          >
-                            <span>{providerName}</span>
-                            <ChevronRight className={`h-4 w-4 text-gray-500 transition-transform ${expandedProvider === providerKey ? 'rotate-90' : ''}`} />
-                          </button>
-                          {expandedProvider === providerKey && (
-                            <div className="pl-3 border-l-2 border-gray-200 ml-1">
-                              {/* Provider Default Option */}
-                              <button
-                                onClick={() => handleModelSelect(providerKey)}
-                                className={`w-full text-left px-3 py-2 text-sm flex items-center ${selectedModel === providerKey ? 'bg-orange-100 text-orange-600' : 'text-gray-600 hover:bg-gray-50'}`}
-                              >
-                                {providerName} (Default)
-                              </button>
-                              {/* Specific Models */}
-                              {providerModels.map(model => (
+                      {Object.entries(groupedModels).map(([providerKey, providerModels]) => {
+                        if (providerModels.length === 0 && providerKey !== 'openai' && providerKey !== 'claude' && providerKey !== 'gemini') {
+                            return null; 
+                        }
+                        const providerName = providerKey.charAt(0).toUpperCase() + providerKey.slice(1);
+                        
+                        return (
+                          <div key={providerKey}>
+                            <button
+                              onClick={() => toggleProviderSubmenu(providerKey)}
+                              className="w-full text-left px-3 py-2.5 text-base font-medium text-gray-800 hover:bg-gray-100 flex justify-between items-center h-10 min-h-10"
+                            >
+                              <span>{providerName}</span>
+                              <ChevronRight className={`h-4 w-4 text-gray-500 transition-transform ${expandedProvider === providerKey ? 'rotate-90' : ''}`} />
+                            </button>
+                            {expandedProvider === providerKey && (
+                              <div className="pl-3 border-l-2 border-gray-200 ml-1">
                                 <button
-                                  key={model.id}
-                                  onClick={() => handleModelSelect(model.id)}
-                                  className={`w-full text-left px-3 py-2 text-sm flex items-center ${selectedModel === model.id ? 'bg-orange-100 text-orange-600' : 'text-gray-600 hover:bg-gray-50'}`}
+                                  onClick={() => handleModelSelect(providerKey)}
+                                  className={`w-full text-left px-3 py-2.5 text-base flex items-center h-10 min-h-10 ${selectedModel === providerKey ? 'bg-orange-100 text-orange-600' : 'text-gray-600 hover:bg-gray-50'}`}
                                 >
-                                  {model.name}
+                                  {providerName} (Default)
                                 </button>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
+                                {providerModels.map(model => (
+                                  <button
+                                    key={model.id}
+                                    onClick={() => handleModelSelect(model.id)}
+                                    className={`w-full text-left px-3 py-2.5 text-base flex items-center h-10 min-h-10 ${selectedModel === model.id ? 'bg-orange-100 text-orange-600' : 'text-gray-600 hover:bg-gray-50'}`}
+                                  >
+                                    {model.name}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+                
+                {selectedModel === 'neuroswitch' && (
+                  <span
+                    id="neuroswitch-status-indicator-header"
+                    className={`ml-1 sm:ml-2 text-xs ${neuroStatus === 'green' ? 'text-green-600' : neuroStatus === 'orange' ? 'text-orange-500' : 'text-gray-400'} bg-gray-100 bg-opacity-75 backdrop-blur-sm px-1.5 py-0.5 rounded-full`}
+                    title="NeuroSwitch Status"
+                  >
+                    ● {neuroStatus === 'green' ? 'Active' : neuroStatus === 'orange' ? 'Fallback' : 'Idle'}
+                  </span>
                 )}
               </div>
-              
-              {/* NeuroSwitch Status Indicator */}
-              {selectedModel === 'neuroswitch' && (
-                <span
-                  id="neuroswitch-status-indicator-header"
-                  className={`ml-2 text-xs ${neuroStatus === 'green' ? 'text-green-600' : neuroStatus === 'orange' ? 'text-orange-500' : 'text-gray-400'} bg-gray-100 bg-opacity-75 backdrop-blur-sm px-1.5 py-0.5 rounded-full`}
-                  title="NeuroSwitch Status"
-                >
-                  ● {neuroStatus === 'green' ? 'Active' : neuroStatus === 'orange' ? 'Fallback' : 'Idle'}
-                </span>
-              )}
             </div>
-            {/* Right Side: User Icon/Login */}
+            
             <div className="flex items-center">
               {authStatus ? (
-                <div ref={dropdownRef} className="relative mr-2">
+                <div ref={dropdownRef} className="relative">
                   <button
                     onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                    className="flex items-center justify-center h-10 w-10 rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                    className="flex items-center justify-center h-10 w-10 rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 min-w-10 min-h-10"
                   >
                     {renderAvatar()} 
                   </button>
                   {isDropdownOpen && (
-                    <div className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg py-1 bg-gray-100 ring-1 ring-black ring-opacity-5 focus:outline-none z-50">
+                    <div className="origin-top-right absolute right-0 mt-2 w-56 sm:w-64 max-w-[90vw] rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-50">
                       <button
                         onClick={handleLogout}
-                        className="w-full text-left flex items-center px-4 py-2 text-sm text-red-600 hover:bg-neutral-100"
+                        className="w-full text-left flex items-center px-4 py-3 text-base text-red-600 hover:bg-neutral-100 h-10 min-h-10"
                       >
-                        <LogOut className="mr-2 h-4 w-4"/> Sign out
+                        <LogOut className="mr-2 h-5 w-5"/> Sign out
                       </button>
                     </div>
                   )}
@@ -516,7 +615,7 @@ const ChatLayout: React.FC<ChatLayoutProps> = () => {
               ) : (
                 <button
                   onClick={openLoginModal}
-                  className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500"
+                  className="inline-flex items-center px-3 py-2 border border-transparent text-base font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 h-10 min-h-10"
                 >
                   Login
                 </button>
@@ -532,12 +631,14 @@ const ChatLayout: React.FC<ChatLayoutProps> = () => {
             neuroStatus={neuroStatus}
             setNeuroStatus={setNeuroStatus}
             allModels={allModels}
+            isManualScrolling={isManualScrolling}
+            promptForLogin={openLoginModal}
           />
         </main>
       </div>
     </div>
     <AuthModal 
-        isOpen={isAuthModalOpen} 
+        isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
         initialView={authModalView}
         returnUrl={pathname} 

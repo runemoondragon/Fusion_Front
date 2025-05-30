@@ -49,18 +49,17 @@ export default function Navigation() {
     setIsAuthModalOpen(true)
   }
   
-  // Optional: Function to open signup directly if needed elsewhere
   const openSignupModal = () => {
       setAuthModalView('signup')
       setIsAuthModalOpen(true)
   }
 
-  // Don't render header on auth pages or chat pages
-  if (pathname === '/login' || pathname === '/signup' || pathname.startsWith('/chat')) {
+  // Don't render header on auth pages or chat pages for now.
+  // The chat page will get its own internal header via ChatLayout.
+  if (pathname === '/login' || pathname === '/signup') { // Removed /chat from this condition
       return null;
   }
 
-  // Determine what to display for the avatar
   const renderAvatar = () => {
     if (isLoadingUser) {
       return <div className="h-8 w-8 rounded-full bg-neutral-300 animate-pulse"></div>;
@@ -68,14 +67,13 @@ export default function Navigation() {
     if (user && user.avatarUrl) {
       return <img src={user.avatarUrl} alt={user.displayName || 'User Avatar'} className="h-8 w-8 rounded-full object-cover" />;
     }
-    if (user && user.email) { // Fallback to initials if no avatarUrl but email exists
+    if (user && user.email) { 
         return (
             <div className="h-8 w-8 rounded-full bg-orange-500 flex items-center justify-center text-white text-sm font-semibold">
                 {user.email[0].toUpperCase()}
             </div>
         );
     }
-    // Default placeholder if no user or no email for initials
     return (
         <div className="h-8 w-8 rounded-full bg-neutral-300 flex items-center justify-center">
             <User className="h-5 w-5 text-neutral-600"/>
@@ -83,18 +81,21 @@ export default function Navigation() {
     );
   };
 
+  // Hide navigation entirely on the /chat page since ChatLayout provides its own nav
+  if (pathname.startsWith('/chat')) {
+    return null;
+  }
+
   return (
     <>
     <nav className="bg-white border-b border-neutral-200 h-16 flex items-center px-4 md:px-6 lg:px-8">
       <div className="flex items-center justify-between w-full">
-        {/* Left Section: Logo */}
         <div className="flex items-center">
         <Link href="/" className="font-semibold text-lg tracking-tight mr-6">
             Fusion AI
           </Link>
         </div>
 
-        {/* Center Section: Search (only when logged in) */}
         {authStatus && (
           <div className="flex-1 flex justify-center max-w-md mx-4">
              <div className="relative w-full">
@@ -109,31 +110,21 @@ export default function Navigation() {
              </div>
           </div>
         )}
-        {!authStatus && <div className="flex-1"></div>} {/* Placeholder to keep balance when logged out */}
+        {!authStatus && <div className="flex-1"></div>} 
 
-
-        {/* Right Section: Links & User Menu/Login */}
         <div className="flex items-center">
-          {/* Common Links (Visible to all, before login/user menu) */}
           <div className="hidden md:flex items-center space-x-6 mr-6">
-              {/* Conditional Admin Link */}
               {!isLoadingUser && user && user.role === 'admin' && (
                 <Link href="/admin" className="text-sm font-medium text-neutral-600 hover:text-orange-600">Admin</Link>
               )}
               <Link href="/chat" className="text-sm font-medium text-neutral-600 hover:text-orange-600">Chat</Link>
-              {/* Add other common links like Docs, Pricing here if needed */}
+              <Link href="/models" className="text-sm font-medium text-neutral-600 hover:text-orange-600">Models</Link>
+              <Link href="/rankings" className="text-sm font-medium text-neutral-600 hover:text-orange-600">Rankings</Link>
           </div>
           
           {authStatus ? (
             <>
-              {/* Top Links (Only visible when logged in) */}
-              <div className="hidden md:flex items-center space-x-6 mr-6">
-                <Link href="/models" className="text-sm font-medium text-neutral-600 hover:text-orange-600">Models</Link>
-                <Link href="/rankings" className="text-sm font-medium text-neutral-600 hover:text-orange-600">Rankings</Link>
-                <Link href="/docs" className="text-sm font-medium text-neutral-600 hover:text-orange-600">Docs</Link>
-              </div>
-
-              {/* User Dropdown */}
+              {/* User Dropdown (No longer contains Models/Rankings) */}
               <div className="relative" ref={dropdownRef}>
                 <button
                   onClick={() => setIsDropdownOpen(!isDropdownOpen)}
@@ -142,7 +133,7 @@ export default function Navigation() {
                   aria-haspopup="true"
                 >
                   <span className="sr-only">Open user menu</span>
-                  {renderAvatar()} {/* Use the renderAvatar function here */}
+                  {renderAvatar()}
                 </button>
 
                 {isDropdownOpen && (
@@ -170,26 +161,21 @@ export default function Navigation() {
               </div>
             </>
           ) : (
-            // Login Button - Now triggers modal
             <button
-              onClick={openLoginModal} // Changed from Link
+              onClick={openLoginModal}
               className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500"
             >
               Login
             </button>
-            // Optional: Add a separate Signup button here if desired
-            // <button onClick={openSignupModal} className="ml-4 ...">Sign Up</button>
           )}
         </div>
       </div>
     </nav>
     
-    {/* Render the AuthModal conditionally */}
     <AuthModal 
         isOpen={isAuthModalOpen} 
         onClose={() => setIsAuthModalOpen(false)}
         initialView={authModalView}
-        // Pass the current path as returnUrl? Or maybe specific dashboard path?
         returnUrl={pathname} 
     />
     </>

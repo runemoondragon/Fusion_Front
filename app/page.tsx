@@ -3,12 +3,23 @@
 import React, { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
+import AuthModal from './components/auth/AuthModal'
+import { usePathname } from 'next/navigation'
 // import Thesis from './components/Thesis' // Removing for now
 // import ContentCarousel from './components/ContentCarousel' // Removing for now
 // import { WorkWithUsModal } from './components/WorkWithUsModal' // Removing for now
 
 // Main home page component
 export default function Home() {
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authModalView, setAuthModalView] = useState<'login' | 'signup'>('login');
+  const pathname = usePathname();
+
+  const openAuthModal = (view: 'login' | 'signup') => {
+    setAuthModalView(view);
+    setIsAuthModalOpen(true);
+  };
+
   // const [isModalOpen, setIsModalOpen] = useState(false) // Removing modal state
 
   // const contentItems = [ ... ] // Removing old content items
@@ -38,17 +49,16 @@ export default function Home() {
               <p className="font-mono text-[13px] tracking-wider leading-relaxed max-w-md mx-auto">
                 Power your workflow with OpenAI, Gemini, and Anthropic — all in one place.
               </p>
-              {/* Updated CTAs */}
-              <div className="space-x-4">
+              <div className="flex flex-col sm:flex-row sm:justify-center items-center gap-4">
                 <button
-                  // onClick={() => { /* Link to signup */ }}
-                  className="inline-block bg-black text-white font-mono text-[11px] tracking-wider px-6 py-3 hover:bg-orange-500 transition-colors"
+                  onClick={() => openAuthModal('signup')}
+                  className="w-full sm:w-auto inline-block bg-black text-white font-mono text-[11px] tracking-wider px-6 py-3 hover:bg-orange-500 transition-colors"
                 >
                   GET STARTED →
                 </button>
                 <button
-                  // onClick={() => { /* Link to login */ }}
-                  className="inline-block bg-neutral-200 text-black font-mono text-[11px] tracking-wider px-6 py-3 hover:bg-neutral-300 transition-colors"
+                  onClick={() => openAuthModal('login')}
+                  className="w-full sm:w-auto inline-block bg-neutral-200 text-black font-mono text-[11px] tracking-wider px-6 py-3 hover:bg-neutral-300 transition-colors"
                 >
                   LOGIN
                 </button>
@@ -66,13 +76,18 @@ export default function Home() {
               <p className="font-mono text-[13px] tracking-wider leading-relaxed max-w-md">
                 Power your workflow with OpenAI, Gemini, and Anthropic — all in one place.
               </p>
-               {/* Updated CTAs */}
-              <div className="space-x-4">
+              <div className="flex items-center gap-4">
                  <button
-                  // onClick={() => { /* Link to signup */ }}
+                  onClick={() => openAuthModal('signup')}
                   className="inline-block bg-black text-white font-mono text-[11px] tracking-wider px-6 py-3 hover:bg-orange-500 transition-colors"
                 >
                   GET STARTED →
+                </button>
+                <button
+                  onClick={() => openAuthModal('login')}
+                  className="inline-block bg-neutral-200 text-black font-mono text-[11px] tracking-wider px-6 py-3 hover:bg-neutral-300 transition-colors"
+                >
+                  LOGIN
                 </button>
               </div>
             </div>
@@ -367,6 +382,12 @@ export default function Home() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
       /> */}
+      <AuthModal 
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        initialView={authModalView}
+        returnUrl={pathname}
+      />
     </div>
   )
 }

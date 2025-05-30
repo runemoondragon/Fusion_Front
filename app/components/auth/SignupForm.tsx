@@ -3,7 +3,6 @@
 import React, { useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { useRouter } from 'next/navigation'
 
 // TODO: Share OAuth button component if not already done
 interface OAuthProviderButtonProps {
@@ -24,40 +23,34 @@ const OAuthProviderButton: React.FC<OAuthProviderButtonProps> = ({ providerName,
 )
 
 interface SignupFormProps {
-  onSuccess: () => void // Callback after successful signup
+  onSuccess: (message?: string) => void // Callback after successful signup, can take a message
   onSwitchToLogin: () => void // Callback to switch modal view to login
 }
 
 const SignupForm: React.FC<SignupFormProps> = ({ onSuccess, onSwitchToLogin }) => {
-  const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
   const [agreedToTerms, setAgreedToTerms] = useState(false)
   const [error, setError] = useState('')
+  const [successMessage, setSuccessMessage] = useState(''); // For verification message
   const [isLoading, setIsLoading] = useState(false)
-  const [isEmailSignup, setIsEmailSignup] = useState(false) // State to toggle email form
+  const [isEmailSignup, setIsEmailSignup] = useState(false)
 
   const handleOAuthSignup = (provider: string) => {
-    // Store return URL before redirecting
     localStorage.setItem('auth_return_url', '/')
-    // Redirect to backend OAuth route
     window.location.href = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/auth/${provider}`
-    // onSuccess will likely be handled by the page detecting the auth token after redirect
   }
 
   const handleEmailSignup = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
-    if (!email || !password || !confirmPassword) {
+    setSuccessMessage(''); // Clear previous success message
+
+    if (!email || !password) {
       setError('Please fill in all fields.')
       return
     }
-    if (password !== confirmPassword) {
-      setError('Passwords do not match.')
-      return
-    }
-    if (password.length < 8) { // Example validation
+    if (password.length < 8) {
       setError('Password must be at least 8 characters long.')
       return
     }
@@ -76,11 +69,19 @@ const SignupForm: React.FC<SignupFormProps> = ({ onSuccess, onSwitchToLogin }) =
         body: JSON.stringify({ email, password }),
       })
       const data = await response.json()
+      
       if (!response.ok) {
-        throw new Error(data.error || 'Registration failed')
+        throw new Error(data.error || 'Registration failed. Please try again.')
       }
-      localStorage.setItem('auth_token', data.token)
-      onSuccess() // Call the success callback
+      
+      setSuccessMessage(data.message || 'Account created! Please check your email to verify your account.');
+      setEmail('');
+      setPassword('');
+      setAgreedToTerms(false);
+      setTimeout(() => {
+        onSuccess(data.message || 'Account created! Please check your email to verify your account.');
+      }, 3000); 
+
     } catch (err: any) {
       setError(err.message || 'Something went wrong. Please try again.')
     } finally {
@@ -122,7 +123,11 @@ const SignupForm: React.FC<SignupFormProps> = ({ onSuccess, onSwitchToLogin }) =
       {/* Email Form Section */}
       {!isEmailSignup ? (
         <button
-          onClick={() => setIsEmailSignup(true)}
+          onClick={() => {
+            setIsEmailSignup(true);
+            setError(''); // Clear errors when switching view
+            setSuccessMessage(''); // Clear success messages
+          }}
           className="w-full flex justify-center py-2.5 px-4 border border-neutral-300 rounded-md shadow-sm text-sm font-medium text-neutral-700 bg-white hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition-colors"
         >
           Continue with Email
@@ -159,21 +164,6 @@ const SignupForm: React.FC<SignupFormProps> = ({ onSuccess, onSwitchToLogin }) =
               disabled={isLoading}
             />
           </div>
-          <div>
-            <label htmlFor="signup-confirm-password" className="sr-only">Confirm Password</label>
-            <input
-              id="signup-confirm-password"
-              name="confirm-password"
-              type="password"
-              autoComplete="new-password"
-              required
-              className="appearance-none relative block w-full px-3 py-2.5 border border-neutral-300 placeholder-neutral-500 text-neutral-900 rounded-md focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm"
-              placeholder="Confirm Password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              disabled={isLoading}
-            />
-          </div>
 
           {/* Terms of Service Checkbox */}
           <div className="flex items-start">
@@ -202,6 +192,11 @@ const SignupForm: React.FC<SignupFormProps> = ({ onSuccess, onSwitchToLogin }) =
               {error}
             </div>
           )}
+          {successMessage && (
+            <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-2 rounded relative text-xs" role="alert">
+              {successMessage}
+            </div>
+          )}
 
           <div>
             <button
@@ -209,14 +204,18 @@ const SignupForm: React.FC<SignupFormProps> = ({ onSuccess, onSwitchToLogin }) =
               className={`w-full flex justify-center py-2.5 px-4 border border-transparent text-sm font-medium rounded-md text-white 
                 ${isLoading || !agreedToTerms ? 'bg-neutral-400 cursor-not-allowed' : 'bg-slate-800 hover:bg-orange-600'} 
                 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition-colors`}
-              disabled={isLoading || !agreedToTerms}
+              disabled={isLoading || !agreedToTerms || !!successMessage}
             >
               {isLoading ? 'Processing...' : 'Create Account'}
             </button>
           </div>
           <button 
             type="button"
-            onClick={() => setIsEmailSignup(false)}
+            onClick={() => {
+                setIsEmailSignup(false);
+                setError(''); // Clear errors
+                setSuccessMessage(''); // Clear success messages
+            }}
             className="mt-2 w-full flex justify-center py-2 px-4 border border-neutral-300 rounded-md shadow-sm text-sm font-medium text-neutral-700 bg-white hover:bg-neutral-50"
             disabled={isLoading}
           >
@@ -229,13 +228,17 @@ const SignupForm: React.FC<SignupFormProps> = ({ onSuccess, onSwitchToLogin }) =
       <div className="text-xs text-center mt-4">
         <p className="font-light text-neutral-600">
           Already have an account? {' '}
-          <button onClick={onSwitchToLogin} className="font-medium text-orange-600 hover:text-orange-500 underline">
+          <button 
+            onClick={() => {
+                onSwitchToLogin();
+                setError(''); 
+                setSuccessMessage('');
+            }}
+            className="font-medium text-orange-600 hover:text-orange-500 underline">
             Log In
           </button>
         </p>
       </div>
-
-      {/* Removed the old terms text paragraph */}
     </div>
   )
 }

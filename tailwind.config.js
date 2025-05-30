@@ -12,6 +12,12 @@ module.exports = {
           sans: ['Inter', 'system-ui', 'sans-serif'],
           heading: ['Inter', 'system-ui', 'sans-serif'],
         },
+        spacing: {
+          'safe': 'env(safe-area-inset-bottom, 0px)',
+        },
+        padding: {
+          'safe': 'env(safe-area-inset-bottom, 0px)',
+        },
       },
     },
     plugins: [],

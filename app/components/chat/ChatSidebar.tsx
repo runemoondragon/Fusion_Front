@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useRef } from 'react'
-import { Plus, AlertTriangle, Loader2, Edit3, Trash2, HomeIcon } from 'lucide-react' // Using lucide-react for icons
+import { Plus, AlertTriangle, Loader2, Edit3, Trash2, HomeIcon, X } from 'lucide-react' // Added X icon
 import { useRouter } from 'next/navigation'; // Added for navigation
 
 interface Room {
@@ -21,6 +21,7 @@ interface ChatSidebarProps {
   error?: string | null // Added
   isUserAuth: boolean; // Added
   onLoginClick: () => void; // Added
+  onClose?: () => void; // Added for mobile close button
 }
 
 const ChatSidebar: React.FC<ChatSidebarProps> = ({
@@ -34,6 +35,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
   error,
   isUserAuth, // Added
   onLoginClick, // Added
+  onClose, // Added
 }) => {
   const [editingRoomId, setEditingRoomId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState<string>('');
@@ -75,17 +77,28 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
   }, [editingRoomId]);
 
   return (
-    <aside className="hidden md:flex flex-col w-64 bg-white border-r border-neutral-200 h-full">
-      {/* Header with New Room Button - Modified */}
-      <div className="p-3 border-b border-neutral-200">
+    <aside className="flex flex-col w-full md:w-64 bg-white h-full">
+      {/* Header with close button for mobile and New Room Button */}
+      <div className="p-3 border-b border-neutral-200 flex items-center justify-between">
         <button 
           onClick={isUserAuth ? onNewRoom : onLoginClick} // Call onLoginClick if not authenticated
           disabled={isLoading || !isUserAuth} // Disable if loading or not authenticated
-          className="w-full flex items-center justify-center gap-2 p-2 rounded bg-orange-100 text-black text-sm font-medium hover:bg-neutral-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex-1 flex items-center justify-center gap-2 p-2.5 rounded bg-orange-100 text-black text-base font-medium hover:bg-neutral-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed h-10"
         >
           <img src="content/images/fusion.png" alt="Fusion AI Logo" className="w-5 h-5" />
           <span>{isUserAuth ? 'New Chat' : 'Login to Chat'}</span> {/* Change text if not authenticated */}
         </button>
+        
+        {/* Close button - mobile only */}
+        {onClose && (
+          <button 
+            onClick={onClose}
+            className="md:hidden ml-2 p-2 rounded-full hover:bg-gray-100 h-10 w-10 flex items-center justify-center"
+            aria-label="Close sidebar"
+          >
+            <X className="w-6 h-6 text-gray-500" />
+          </button>
+        )}
       </div>
       
       {/* Room List */}
@@ -105,12 +118,12 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
           </div>
         )}
         {!isLoading && !error && !isUserAuth && rooms.length === 0 && (
-          <p className="p-4 text-center text-sm text-neutral-500">
+          <p className="p-4 text-center text-base text-neutral-500">
             Please log in to start chatting.
           </p>
         )}
         {!isLoading && !error && isUserAuth && rooms.length === 0 && (
-          <p className="p-4 text-center text-sm text-neutral-500">
+          <p className="p-4 text-center text-base text-neutral-500">
             No chat sessions yet.
             <br />
             Click "New Chat" to start.
@@ -126,13 +139,13 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
                 onChange={handleTitleChange}
                 onBlur={() => handleTitleSubmit(room.id)}
                 onKeyDown={(e) => handleInputKeyDown(e, room.id)}
-                className="w-full px-3 py-2 text-sm font-medium bg-white border border-orange-300 rounded-md focus:ring-1 focus:ring-orange-500 focus:border-orange-500"
+                className="w-full px-3 py-2.5 text-base font-medium bg-white border border-orange-300 rounded-md focus:ring-1 focus:ring-orange-500 focus:border-orange-500 h-10"
                 placeholder="Enter new title"
               />
             ) : (
               <button
                 onClick={() => onSelectRoom(room.id)}
-                className={`w-full text-left block pl-3 pr-10 py-2 rounded-md text-sm font-medium truncate transition-colors flex items-center ${
+                className={`w-full text-left block pl-3 pr-16 py-2.5 rounded-md text-base font-medium truncate transition-colors flex items-center h-10 ${
                   room.id === activeRoomId
                     ? 'bg-orange-50 text-orange-700'
                     : 'text-neutral-600 hover:bg-neutral-100'
@@ -143,7 +156,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
                   <img 
                     src={`/${room.provider.toLowerCase().replace(/\s+/g, '-')}.png`} 
                     alt={`${room.provider} icon`}
-                    className="w-4 h-4 mr-1.5 flex-shrink-0"
+                    className="w-5 h-5 mr-1.5 flex-shrink-0"
                     onError={(e) => {
                       // Attempt to load neuro-switch.png if neuroswitch fails (common variation)
                       if (room.provider?.toLowerCase() === 'neuroswitch') {
@@ -166,10 +179,10 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
                     e.stopPropagation();
                     handleEditClick(room);
                   }}
-                  className="p-1 text-neutral-400 hover:text-neutral-600 rounded"
+                  className="p-2 text-neutral-400 hover:text-neutral-600 rounded h-8 w-8 flex items-center justify-center"
                   title="Edit title"
                 >
-                  <Edit3 size={14} />
+                  <Edit3 size={16} />
                 </button>
                 <button
                   onClick={(e) => {
@@ -178,10 +191,10 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
                       onDeleteRoom(room.id);
                     }
                   }}
-                  className="p-1 text-neutral-400 hover:text-red-500 rounded"
+                  className="p-2 text-neutral-400 hover:text-red-500 rounded h-8 w-8 flex items-center justify-center"
                   title="Delete chat"
                 >
-                  <Trash2 size={14} />
+                  <Trash2 size={16} />
                 </button>
               </div>
             )}
@@ -193,14 +206,12 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
       <div className="p-2 border-t border-neutral-200">
         <button 
           onClick={() => router.push('/')}
-          className="w-full flex items-center justify-start gap-2 p-2 rounded text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100 text-sm transition-colors"
+          className="w-full flex items-center justify-start gap-2 p-2.5 rounded text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100 text-base transition-colors h-10"
           title="Go to Home"
         >
-          <HomeIcon size={16} className="mr-1" />
+          <HomeIcon size={18} className="mr-1" />
           <span>Home</span>
         </button>
-        {/* Example: Settings Link */}
-        {/* <button className="w-full text-left text-neutral-500 hover:text-neutral-700 text-sm p-2">Settings</button> */}
       </div>
     </aside>
   )

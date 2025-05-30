@@ -34,8 +34,10 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onSwitchToSignup, retu
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
+  const [infoMessage, setInfoMessage] = useState(''); // For general info/success messages
   const [isLoading, setIsLoading] = useState(false)
   const [isEmailLogin, setIsEmailLogin] = useState(false) // State to toggle email form visibility
+  const [showResendVerification, setShowResendVerification] = useState(false);
 
   const handleOAuthLogin = (provider: string) => {
     // Store the return URL before redirecting
@@ -48,6 +50,9 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onSwitchToSignup, retu
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    setInfoMessage('');
+    setShowResendVerification(false);
+
     if (!email || !password) {
       setError('Please enter both email and password.')
       return
@@ -63,8 +68,15 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onSwitchToSignup, retu
         body: JSON.stringify({ email, password }),
       })
       const data = await response.json()
+      
       if (!response.ok) {
-        throw new Error(data.error || 'Login failed')
+        if (data.error === 'ACCOUNT_NOT_VERIFIED') {
+          setError(data.message || 'Please verify your email to activate your account.');
+          setShowResendVerification(true);
+        } else {
+          setError(data.error || 'Login failed. Please check your credentials.')
+        }
+        return; // Stop execution if login failed
       }
       localStorage.setItem('auth_token', data.token)
       onSuccess() // Call the success callback (likely closes modal)
@@ -75,6 +87,35 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onSwitchToSignup, retu
       setIsLoading(false)
     }
   }
+
+  const handleResendVerification = async () => {
+    if (!email) {
+      setError('Please enter your email address above to resend verification.');
+      return;
+    }
+    setError('');
+    setInfoMessage('');
+    setIsLoading(true);
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/auth/resend-verification`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to resend verification email.');
+      }
+      setInfoMessage(data.message || 'Verification email resent. Please check your inbox.');
+      setShowResendVerification(false); // Optionally hide button after successful resend
+    } catch (err: any) {
+      setError(err.message || 'Something went wrong while resending the email.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Define providers here as they were in the original page
   const oauthProviders = [
@@ -111,7 +152,12 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onSwitchToSignup, retu
       {/* Email Form Section */}
       {!isEmailLogin ? (
         <button
-          onClick={() => setIsEmailLogin(true)}
+          onClick={() => {
+            setIsEmailLogin(true);
+            setError('');
+            setInfoMessage('');
+            setShowResendVerification(false);
+          }}
           className="w-full flex justify-center py-2.5 px-4 border border-neutral-300 rounded-md shadow-sm text-sm font-medium text-neutral-700 bg-white hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition-colors"
         >
           Continue with Email
@@ -154,6 +200,24 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onSwitchToSignup, retu
               {error}
             </div>
           )}
+          {infoMessage && (
+            <div className="bg-blue-100 border border-blue-400 text-blue-700 px-4 py-2 rounded relative text-xs" role="alert">
+              {infoMessage}
+            </div>
+          )}
+
+          {showResendVerification && (
+            <div className="mt-2">
+              <button
+                type="button"
+                onClick={handleResendVerification}
+                className="w-full flex justify-center py-2 px-4 border border-orange-500 rounded-md shadow-sm text-sm font-medium text-orange-600 bg-white hover:bg-orange-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition-colors"
+                disabled={isLoading}
+              >
+                {isLoading ? 'Sending...' : 'Resend verification email'}
+              </button>
+            </div>
+          )}
 
           <div>
             <button
@@ -168,7 +232,12 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onSwitchToSignup, retu
           </div>
            <button 
               type="button"
-              onClick={() => setIsEmailLogin(false)}
+              onClick={() => {
+                setIsEmailLogin(false);
+                setError('');
+                setInfoMessage('');
+                setShowResendVerification(false);
+              }}
               className="mt-2 w-full flex justify-center py-2 px-4 border border-neutral-300 rounded-md shadow-sm text-sm font-medium text-neutral-700 bg-white hover:bg-neutral-50"
               disabled={isLoading}
           >
@@ -181,7 +250,13 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onSwitchToSignup, retu
       <div className="text-xs text-center mt-4">
         <p className="font-light text-neutral-600">
           Don't have an account? {' '}
-          <button onClick={onSwitchToSignup} className="font-medium text-orange-600 hover:text-orange-500 underline">
+          <button onClick={() => {
+            onSwitchToSignup();
+            setError('');
+            setInfoMessage('');
+            setShowResendVerification(false);
+          }} 
+          className="font-medium text-orange-600 hover:text-orange-500 underline">
             Sign Up
           </button>
         </p>

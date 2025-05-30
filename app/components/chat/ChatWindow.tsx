@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, ChangeEvent, FormEvent } from 'react';
+import React, { useState, useRef, useEffect, ChangeEvent, FormEvent, KeyboardEvent } from 'react';
 // import axios from 'axios'; // Will be replaced by apiClient
 import apiClient from '../../lib/apiClient'; // Import apiClient
 import ReactMarkdown from 'react-markdown';
@@ -14,6 +14,7 @@ import css from 'react-syntax-highlighter/dist/esm/languages/prism/css';
 import typescript from 'react-syntax-highlighter/dist/esm/languages/prism/typescript';
 import markdown from 'react-syntax-highlighter/dist/esm/languages/prism/markdown';
 import { Element } from 'hast';
+import { useUser } from '../../contexts/UserContext'; // Import useUser
 // import type { CodeProps } from 'react-markdown/lib/ast-to-react'; // Removed this due to import error
 
 // Register languages
@@ -92,6 +93,8 @@ interface ChatWindowProps {
   setSelectedModel: React.Dispatch<React.SetStateAction<string>>;
   neuroStatus: 'green' | 'orange' | '';
   setNeuroStatus: React.Dispatch<React.SetStateAction<'green' | 'orange' | ''>>;
+  isManualScrolling?: boolean; // Added to prevent auto-scroll when user is manually scrolling
+  promptForLogin: () => void; // Add promptForLogin prop
   // We might also need onMessageSaved or similar to trigger chat list refresh in layout
 }
 
@@ -124,8 +127,11 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   allModels,     // Destructure new props
   setSelectedModel, 
   neuroStatus, 
-  setNeuroStatus
+  setNeuroStatus,
+  isManualScrolling = false, // Default to false if not provided
+  promptForLogin // Destructure promptForLogin
 }) => {
+  const { user } = useUser(); // Get user from context
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
@@ -218,10 +224,15 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   }, [input]);
 
   const handleSend = async (e?: FormEvent<HTMLFormElement>) => {
-    console.log('[ChatWindow handleSend] Current activeChatId:', activeChatId, 'Current local messages count:', messages.length); // DEBUG LOG
     if (e) e.preventDefault();
-    if (!input.trim() && !imageData) return;
 
+    if (!user) {
+      promptForLogin();
+      return;
+    }
+
+    if (!input.trim() && !imageData) return;
+    
     // const token = localStorage.getItem('auth_token'); // Handled by apiClient
     // if (!token) { // Handled by apiClient
     //   setMessages((prev) => [
@@ -486,6 +497,43 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     setInput(event.target.value);
   };
 
+  const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault(); 
+      if (!user) {
+        promptForLogin();
+        return;
+      }
+      if (!loading && (input.trim() || imageData)) {
+        handleSend(); 
+      }
+    }
+    if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+      event.preventDefault();
+      if (!user) {
+        promptForLogin();
+        return;
+      }
+      if (!loading && (input.trim() || imageData)) {
+        handleSend();
+      }
+    }
+  };
+
+  // Add scrollToBottom function
+  const scrollToBottom = () => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  // Add effect for auto-scrolling
+  useEffect(() => {
+    if (!isManualScrolling && messages.length > 0) {
+      scrollToBottom();
+    }
+  }, [messages, isManualScrolling]);
+
   const renderMessages = () => (
     messages.map((msg, index) => {
       // START: Contract Violation Check
@@ -507,12 +555,12 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           console.error('ChatWindow: Failed to stringify non-string content', e);
         }
         const key = msg.id ? `msg-${msg.id}-contract-violation` : `msg-idx-${index}-${msg.role}-contract-violation`;
-        // This error message will also be wrapped by the new centered container
+        
         return (
-          <div key={key} className="flex justify-start mb-4">
-            <div className="max-w-xl lg:max-w-3xl px-4 py-2 rounded-lg shadow bg-red-100 text-red-700">
+          <div key={key} className="flex mb-4 px-2">
+            <div className="max-w-[90vw] md:max-w-xl lg:max-w-3xl px-4 py-3 rounded-lg shadow bg-red-100 text-red-700 mr-auto">
               <p className="font-semibold">Contract Violation:</p>
-              <pre className="whitespace-pre-wrap text-xs"><code>{prettyPrintedContent}</code></pre>
+              <pre className="whitespace-pre-wrap text-sm"><code>{prettyPrintedContent}</code></pre>
             </div>
           </div>
         );
@@ -522,32 +570,28 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       const messageKey = msg.id ? `msg-${msg.id}` : `msg-idx-${index}-${msg.role}`;
       const currentMessageContent = msg.content || ''; 
 
-      // Common classes for message bubbles
-      const bubbleBaseClasses = "px-3 py-1.5 rounded-lg shadow p-4 rounded-md"; // REMOVED font-mono from here
+      const bubbleBaseClasses = "px-3 py-2.5 rounded-lg shadow-sm text-base"; 
+      const bubbleMaxWidth = "max-w-[90vw] md:max-w-xl lg:max-w-2xl"; // Adjusted for consistency
       
       if (msg.role === 'user') {
         return (
-          <div key={messageKey} className="flex items-start gap-3 mb-4 justify-end"> {/* User messages on the right */}
-            {/* User Message Bubble (appears before avatar in source for flex justify-end) */}
+          <div key={messageKey} className="flex items-start gap-3 mb-4 justify-end px-2">
             <div
-              className={`message-content-container ${bubbleBaseClasses} bg-gray-200 text-black rounded-br-none max-w-xl lg:max-w-2xl`}
+              className={`message-content-container ${bubbleBaseClasses} ${bubbleMaxWidth} bg-gray-200 text-black rounded-br-none ml-auto`}
             >
-              {/* Content rendering remains the same */}
               {msg.isError ? (
-                <p className="text-red-100 text-sm">{currentMessageContent}</p> // Adjusted error color for dark bg
+                <p className="text-red-100 text-base">{currentMessageContent}</p>
               ) : (
-                <div className="prose prose-invert max-w-none chat-message-content font-sans text-xs">
+                <div className="prose prose-invert max-w-none chat-message-content font-sans text-base">
                   <ReactMarkdown
                     components={{
                       pre: ({ node, ...props }) => {
-                        // Ensure children is an array and has at least one element
                         const childrenArray = React.Children.toArray(props.children);
                         const codeNode = childrenArray[0] as React.ReactElement<any, string | React.JSXElementConstructor<any>> | undefined;
                         
                         if (codeNode && codeNode.type === 'code' && typeof codeNode.props?.className === 'string') {
                           const match = /language-(\w+)/.exec(codeNode.props.className || '');
                           const language = match ? match[1] : undefined;
-                          // Ensure codeNode.props.children is treated as a string
                           const codeString = String(codeNode.props.children ?? '').replace(/\n$/, '');
                           return (
                             <div className="my-2">
@@ -564,17 +608,17 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                         }
                         return <pre {...props} className="font-mono text-sm leading-tight my-2 p-2 bg-gray-700/50 rounded-md overflow-x-auto" />;
                       },
-                      code: (props: CustomCodeProps) => { // Changed signature to take combined props
+                      code: (props: CustomCodeProps) => {
                         const { node, className, children, ...rest } = props;
                         const inline = props.inline;
 
-                        if (!node) return null; // Handle potentially undefined node
+                        if (!node) return null;
 
                         if (inline) {
                           return (
                             <code
                               className="bg-gray-600/50 text-gray-200 px-1 py-0.5 rounded font-mono text-[0.9em]"
-                              {...rest} // Spread the rest of the props
+                              {...rest}
                             >
                               {children}
                             </code>
@@ -589,7 +633,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                                         language={match[1]}
                                         PreTag="div"
                                         className="rounded-lg px-3 py-2 overflow-x-auto font-mono text-sm leading-tight"
-                                        {...rest} // Spread the rest of the props
+                                        {...rest}
                                     >
                                         {String(children ?? '').replace(/\n$/, '')}
                                     </SyntaxHighlighter>
@@ -598,21 +642,13 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                         }
                         return (
                           <code 
-                            className={`${className || ''} font-mono text-xs bg-gray-700/30 rounded p-1 block whitespace-pre-wrap overflow-x-auto`}
-                            {...rest} // Spread the rest of the props
+                            className={`${className || ''} font-mono text-sm bg-gray-700/30 rounded p-1 block whitespace-pre-wrap overflow-x-auto`}
+                            {...rest}
                           >
                             {children}
                           </code>
                         );
                       },
-                      // Example optional overrides for compactness (uncomment and adjust if needed):
-                      // p: ({node, ...props}) => <p className="my-1 text-xs" {...props} />,
-                      // ul: ({node, ...props}) => <ul className="my-1 pl-5 text-xs" {...props} />,
-                      // ol: ({node, ...props}) => <ol className="my-1 pl-5 text-xs" {...props} />,
-                      // blockquote: ({node, ...props}) => <blockquote className="my-1 pl-3 border-l-2 border-gray-500 italic text-xs" {...props} />,
-                      // h1: ({node, ...props}) => <h1 className="text-lg font-semibold my-1.5" {...props} />,
-                      // h2: ({node, ...props}) => <h2 className="text-base font-semibold my-1.5" {...props} />,
-                      // h3: ({node, ...props}) => <h3 className="text-sm font-semibold my-1.5" {...props} />,
                     }}
                   >
                     {currentMessageContent}
@@ -620,20 +656,17 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                 </div>
                 )}
               </div>
-            {/* User Avatar Placeholder */}
-            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-gray-700 text-xs font-semibold">
+            <div className="flex-shrink-0 w-8 h-8 md:w-10 md:h-10 rounded-full bg-gray-300 flex items-center justify-center text-gray-700 text-sm font-semibold">
               You
             </div>
           </div>
         );
       } else { // Assistant messages
         return (
-          <div key={messageKey} className="flex items-start gap-3 mb-4 justify-start"> {/* Assistant messages on the left */}
-            {/* Assistant Avatar */}
-            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-white text-xs overflow-hidden">
+          <div key={messageKey} className="flex items-start gap-3 mb-4 justify-start px-2">
+            <div className="flex-shrink-0 w-8 h-8 md:w-10 md:h-10 rounded-full bg-gray-100 flex items-center justify-center text-white text-sm overflow-hidden">
               {(() => {
                 const providerName = msg.provider?.toLowerCase().replace(/\s+/g, '-') || 'default';
-                // Icon logic remains the same
                 if (providerName === 'openai') return <img src="/openai.png" alt="OpenAI" className="w-full h-full object-contain" />;
                 if (providerName === 'claude') return <img src="/claude.png" alt="Claude" className="w-full h-full object-contain" />;
                 if (providerName === 'gemini') return <img src="/gemini.png" alt="Gemini" className="w-full h-full object-contain" />;
@@ -645,34 +678,30 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                 );
               })()}
             </div>
-            {/* Assistant Message Bubble */}
             <div
-              className={`message-content-container ${bubbleBaseClasses} bg-gray-100 text-slate-900 rounded-bl-none max-w-xl lg:max-w-2xl`}
+              className={`message-content-container ${bubbleBaseClasses} ${bubbleMaxWidth} bg-gray-100 text-slate-900 rounded-bl-none mr-auto`}
             >
-              {/* Content rendering conditional on isLoading, isError, or normal content */}
               {msg.isLoading ? (
-                <div className="flex items-center text-sm text-slate-700 py-1">
-                  <svg className="animate-spin -ml-0.5 mr-2 h-4 w-4 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <div className="flex items-center text-base text-slate-700 py-1">
+                  <svg className="animate-spin -ml-0.5 mr-2 h-5 w-5 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
                   <span>Thinking...</span>
                 </div>
               ) : msg.isError ? (
-                <p className="text-red-500 text-sm">{currentMessageContent}</p> 
+                <p className="text-red-500 text-base">{currentMessageContent}</p> 
               ) : (
-                <div className="prose prose-invert max-w-none chat-message-content font-sans text-xs">
+                <div className="prose prose-invert max-w-none chat-message-content font-sans text-base">
                   <ReactMarkdown
                     components={{
                       pre: ({ node, ...props }) => {
-                        // Ensure children is an array and has at least one element
                         const childrenArray = React.Children.toArray(props.children);
                         const codeNode = childrenArray[0] as React.ReactElement<any, string | React.JSXElementConstructor<any>> | undefined;
                         
                         if (codeNode && codeNode.type === 'code' && typeof codeNode.props?.className === 'string') {
                           const match = /language-(\w+)/.exec(codeNode.props.className || '');
                           const language = match ? match[1] : undefined;
-                          // Ensure codeNode.props.children is treated as a string
                           const codeString = String(codeNode.props.children ?? '').replace(/\n$/, '');
                           return (
                             <div className="my-2">
@@ -689,17 +718,17 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                         }
                         return <pre {...props} className="font-mono text-sm leading-tight my-2 p-2 bg-gray-700/50 rounded-md overflow-x-auto" />;
                       },
-                      code: (props: CustomCodeProps) => { // Changed signature to take combined props
+                      code: (props: CustomCodeProps) => {
                         const { node, className, children, ...rest } = props;
                         const inline = props.inline;
 
-                        if (!node) return null; // Handle potentially undefined node
+                        if (!node) return null;
 
                         if (inline) {
                           return (
                             <code
                               className="bg-gray-600/50 text-gray-200 px-1 py-0.5 rounded font-mono text-[0.9em]"
-                              {...rest} // Spread the rest of the props
+                              {...rest}
                             >
                               {children}
                             </code>
@@ -714,7 +743,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                                         language={match[1]}
                                         PreTag="div"
                                         className="rounded-lg px-3 py-2 overflow-x-auto font-mono text-sm leading-tight"
-                                        {...rest} // Spread the rest of the props
+                                        {...rest}
                                     >
                                         {String(children ?? '').replace(/\n$/, '')}
                                     </SyntaxHighlighter>
@@ -723,21 +752,13 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                         }
                         return (
                           <code 
-                            className={`${className || ''} font-mono text-xs bg-gray-700/30 rounded p-1 block whitespace-pre-wrap overflow-x-auto`}
-                            {...rest} // Spread the rest of the props
+                            className={`${className || ''} font-mono text-sm bg-gray-700/30 rounded p-1 block whitespace-pre-wrap overflow-x-auto`}
+                            {...rest}
                           >
                             {children}
                           </code>
                         );
                       },
-                      // Example optional overrides for compactness (uncomment and adjust if needed):
-                      // p: ({node, ...props}) => <p className="my-1 text-xs" {...props} />,
-                      // ul: ({node, ...props}) => <ul className="my-1 pl-5 text-xs" {...props} />,
-                      // ol: ({node, ...props}) => <ol className="my-1 pl-5 text-xs" {...props} />,
-                      // blockquote: ({node, ...props}) => <blockquote className="my-1 pl-3 border-l-2 border-gray-500 italic text-xs" {...props} />,
-                      // h1: ({node, ...props}) => <h1 className="text-lg font-semibold my-1.5" {...props} />,
-                      // h2: ({node, ...props}) => <h2 className="text-base font-semibold my-1.5" {...props} />,
-                      // h3: ({node, ...props}) => <h3 className="text-sm font-semibold my-1.5" {...props} />,
                     }}
                   >
                     {currentMessageContent}
@@ -752,35 +773,38 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   );
   
   return (
-    <div className="flex flex-col h-full w-full px-4 pb-4 relative font-sans">
+    <div className="flex flex-col h-full w-full relative font-sans px-0 md:px-0">
       
-      <div className="flex-1 overflow-y-auto p-3 pt-16">
-        {/* Centered, max-width container for messages */}
-        <div className="mx-auto w-full max-w-3xl"> 
-        {isLoadingMessages ? (
-            <div className="flex justify-center items-center h-full text-sm text-gray-600">Loading messages...</div>
-        ) : renderMessages()}
+      {/* Message Area: Ensure padding from parent is respected and add top padding for header */}
+      <div className="flex-1 overflow-y-auto pt-16 pb-48 chat-messages-container">
+        {/* Centered, max-width container for messages. Horizontal padding is now px-2, was px-2 before. */}
+        <div className="mx-auto w-full max-w-3xl px-2">
+          {isLoadingMessages ? (
+              <div className="flex justify-center items-center h-full text-base text-gray-600">Loading messages...</div>
+          ) : renderMessages()}
+          <div ref={messagesEndRef} />
         </div>
       </div>
 
-      {/* Input area - Reverted from fixed to normal flow */}
-      <div className="input-wrapper mt-auto px-0 sm:px-0 lg:px-0  pt-2 border-t">
-        <div className="max-w-5xl mx-auto px-2">
+      {/* Input area: Fixed to bottom, full width, with safe area padding */}
+      <div className="input-wrapper mt-auto pt-2 border-t pb-safe fixed bottom-0 left-0 right-0 w-full bg-gray-100 z-10">
+        {/* Inner container for input elements, respects parent padding on mobile, specific padding on md+ */}
+        <div className="max-w-5xl mx-auto px-2 md:px-3 w-full">
           {imagePreview && (
             <div className="mb-1">
-              <div className="relative  inline-block">
+              <div className="relative inline-block">
                 <img
-                  className="max-h-16 sm:max-h-24 rounded-lg "
+                  className="max-h-16 sm:max-h-24 rounded-lg"
                   src={imagePreview}
                   alt="Preview"
                 />
                 <button
                   type="button"
                   onClick={handleRemoveImage}
-                  className="absolute -top-1 -right-1 sm:-top-2 sm:-right-2 bg-white rounded-full p-0.5 shadow-sm hover:bg-gray-100"
+                  className="absolute -top-1 -right-1 sm:-top-2 sm:-right-2 bg-white rounded-full p-1.5 shadow-sm hover:bg-gray-100 h-10 w-10 flex items-center justify-center min-w-10 min-h-10"
                   title="Remove image"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-500" viewBox="0 0 20 20" fill="currentColor">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-500" viewBox="0 0 20 20" fill="currentColor">
                     <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
                   </svg>
                 </button>
@@ -788,23 +812,23 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             </div>
           )}
 
-          <form onSubmit={handleSend} className="relative">
-          <div className="mb-2 text-xs text-gray-500">
-  <span>
-    Tokens Used: {tokensUsed} / {maxTokens} ({Math.floor((tokensUsed / maxTokens) * 100)}%)
-  </span>
-  <div className="w-full bg-gray-200 h-2 rounded">
-    <div
-      className="bg-blue-500 h-2 rounded"
-      style={{ width: `${Math.min((tokensUsed / maxTokens) * 100, 100)}%` }}
-    ></div>
-  </div>
-</div>
-            <div className="flex items-end space-x-1 bg-white rounded-lg border border-gray-300 p-1.5 shadow-md">
+          <form onSubmit={handleSend} className="relative w-full">
+            <div className="mb-2 text-sm text-gray-500">
+              <span>
+                Tokens Used: {tokensUsed} / {maxTokens} ({Math.floor((tokensUsed / maxTokens) * 100)}%)
+              </span>
+              <div className="w-full bg-gray-200 h-2 rounded">
+                <div
+                  className="bg-blue-500 h-2 rounded"
+                  style={{ width: `${Math.min((tokensUsed / maxTokens) * 100, 100)}%` }}
+                ></div>
+              </div>
+            </div>
+            <div className="flex items-end space-x-2 bg-white rounded-lg border border-gray-300 p-2 shadow-md w-full">
               <button
                 type="button"
                 onClick={handleImageUploadClick}
-                className="p-1.5 text-gray-400 hover:text-gray-600"
+                className="p-2.5 text-gray-400 hover:text-gray-600 h-10 w-10 flex items-center justify-center min-w-10 min-h-10"
                 title="Upload Image"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -822,15 +846,16 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                 ref={textareaRef}
                 value={input}
                 onChange={handleTextareaChange}
+                onKeyDown={handleKeyDown}
                 rows={1}
-                className="flex-1 border-0 bg-transparent p-1.5 focus:ring-0 focus:outline-none resize-none max-h-28 overflow-y-auto min-h-[2.25rem]"
-                placeholder="Type something... (⌘ + Enter to send)"
-                style={{ height: '36px' }}
+                className="flex-1 border-0 bg-transparent p-2 focus:ring-0 focus:outline-none resize-none max-h-28 overflow-y-auto min-h-[2.5rem] text-base w-full"
+                placeholder="Type something... (Enter to send, Shift+Enter for new line)"
+                style={{ height: '40px' }}
               />
               <button
                 type="submit"
                 disabled={loading || (!input.trim() && !imageData)}
-                className={`p-1.5 text-blue-500 hover:text-blue-600 ${loading || (!input.trim() && !imageData) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                className={`p-2.5 text-blue-500 hover:text-blue-600 h-10 w-10 flex items-center justify-center min-w-10 min-h-10 ${loading || (!input.trim() && !imageData) ? 'opacity-50 cursor-not-allowed' : ''}`}
                 title="Send Message"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -839,19 +864,19 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
               </button>
             </div>
             
-            <div className="mt-2 overflow-x-auto pb-1 feature-buttons-container">
+            <div className="mt-2 overflow-x-auto pb-1 feature-buttons-container w-full">
               <div className="flex items-center flex-nowrap space-x-1.5">
                 {[
-                  { key: 'deep_research', label: 'Deep Research', icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 2a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V4a2 2 0 00-2-2H4zm3.5 4.5a.5.5 0 01.5-.5h5a.5.5 0 010 1h-5a.5.5 0 01-.5-.5zm0 2a.5.5 0 01.5-.5h5a.5.5 0 010 1h-5a.5.5 0 01-.5-.5zm0 2a.5.5 0 01.5-.5h2a.5.5 0 010 1h-2a.5.5 0 01-.5-.5z" clipRule="evenodd" /></svg> },
-                  { key: 'think', label: 'Think', icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" /></svg> },
-                  { key: 'write_code', label: 'Write/Code', icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.316 3.051a1 1 0 01.633 1.265l-4 12a1 1 0 11-1.898-.632l4-12a1 1 0 011.265-.633zM5.707 6.293a1 1 0 010 1.414L3.414 10l2.293 2.293a1 1 0 11-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0zm8.586 0a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 11-1.414-1.414L16.586 10l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" /></svg> },
-                  { key: 'image', label: 'Image', icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" /></svg> },
+                  { key: 'deep_research', label: 'Deep Research', icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 2a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V4a2 2 0 00-2-2H4zm3.5 4.5a.5.5 0 01.5-.5h5a.5.5 0 010 1h-5a.5.5 0 01-.5-.5zm0 2a.5.5 0 01.5-.5h5a.5.5 0 010 1h-5a.5.5 0 01-.5-.5zm0 2a.5.5 0 01.5-.5h2a.5.5 0 010 1h-2a.5.5 0 01-.5-.5z" clipRule="evenodd" /></svg> },
+                  { key: 'think', label: 'Think', icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" /></svg> },
+                  { key: 'write_code', label: 'Write/Code', icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.316 3.051a1 1 0 01.633 1.265l-4 12a1 1 0 11-1.898-.632l4-12a1 1 0 011.265-.633zM5.707 6.293a1 1 0 010 1.414L3.414 10l2.293 2.293a1 1 0 11-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0zm8.586 0a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 11-1.414-1.414L16.586 10l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" /></svg> },
+                  { key: 'image', label: 'Image', icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" /></svg> },
                 ].map((mode) => (
                   <button
                     key={mode.key}
                     type="button"
                     onClick={() => handleModeButtonClick(mode.key)}
-                    className={`feature-button inline-flex items-center px-2.5 py-1 rounded-full border text-xs whitespace-nowrap 
+                    className={`feature-button inline-flex items-center px-3 py-1.5 rounded-full border text-sm whitespace-nowrap h-10 min-w-10 min-h-10
                       ${currentMode === mode.key
                         ? 'bg-blue-100 text-blue-700 border-blue-300'
                         : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'}`}
@@ -862,8 +887,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                 ))}
               </div>
             </div>
-
-      
           </form>
         </div>
       </div>

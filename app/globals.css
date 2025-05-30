@@ -10,17 +10,28 @@
     'Helvetica Neue', Arial, sans-serif;
   --foreground-rgb: 0, 0, 0;
   --background-rgb: 255, 255, 255;
+  --app-height: 100%;
+}
+
+/* Mobile viewport height fix */
+@supports (-webkit-touch-callout: none) {
+  .h-screen {
+    height: var(--app-height);
+  }
 }
 
 @layer base {
   html {
     font-family: var(--font-sans);
+    height: 100%;
   }
 
   body {
     @apply antialiased bg-white;
     color: rgb(var(--foreground-rgb));
     background: rgb(var(--background-rgb));
+    height: 100%;
+    overflow: hidden;
   }
   
   h1, h2, h3, h4, h5, h6 {
@@ -43,6 +54,11 @@
 @layer components {
   .container {
     @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+  
+  /* Add utility for safe area insets */
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 }
 
@@ -112,9 +128,18 @@
 }
 
 .input-wrapper {
-  @apply sticky bottom-0 bg-gray-100 pt-2 pb-2  ;
+  @apply sticky bottom-0 bg-gray-100 pt-2 z-10;
 }
 
 /* Ensure body takes full height and hides overflow */
 html, body {
+  overscroll-behavior-y: none; /* Prevents pull-to-refresh on mobile */
+}
+
+/* JavaScript helper to fix mobile viewport height issues */
+@layer utilities {
+  .chat-messages-container {
+    /* Space for header + input area to avoid content being hidden */
+    max-height: calc(100vh - 130px);
+  }
 }

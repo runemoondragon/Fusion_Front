@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import pool from '../db';
+import { QueryResult } from 'pg'; // Added for explicit QueryResult typing
 
 // This User interface should align with the data you expect to be available on req.user
 // after successful authentication via JWT or system API key.
@@ -9,9 +10,9 @@ export interface User {
   email?: string;       // From users table
   name?: string;        // display_name from users table
   role?: string;        // Added role
-  stripe_customer_id?: string | null; // Added stripe_customer_id
-  // Add other relevant fields from your 'users' table that might be needed globally
-  // For example: role, is_active, etc.
+  is_active?: boolean;  // <<< ADDED: To confirm if account is admin-activated
+  is_verified?: boolean;// <<< ADDED: To confirm if email is verified
+  stripe_customer_id?: string | null; 
 }
 
 declare global {
@@ -43,35 +44,49 @@ export const verifyToken = async (req: Request, res: Response, next: NextFunctio
       return res.status(401).json({ error: 'Bearer token missing' });
     }
     try {
-      const decoded = jwt.verify(tokenOrKey, process.env.JWT_SECRET || 'your-jwt-secret') as any; // `any` for flexibility with JWT payload
+      // Ensure JWT_SECRET is defined, otherwise throw a server error.
+      const jwtSecret = process.env.JWT_SECRET;
+      if (!jwtSecret) {
+        console.error('[Auth] JWT_SECRET is not defined in environment variables.');
+        return res.status(500).json({ error: 'Internal server configuration error.' });
+      }
+      
+      const decoded = jwt.verify(tokenOrKey, jwtSecret) as jwt.JwtPayload & { id?: number }; // More specific type for decoded payload
+
+      if (!decoded.id) {
+        console.error('[Auth] JWT token does not contain user ID (id).');
+        return res.status(401).json({ error: 'Invalid JWT token payload.' });
+      }
       
       // Fetch fresh user details from DB to ensure up-to-date info and existence
-      const userResult = await pool.query(
-        'SELECT id, email, display_name as name, role FROM users WHERE id = $1 AND is_active = TRUE',
+      const userResult: QueryResult<User> = await pool.query(
+        'SELECT id, email, display_name as name, role, is_active, is_verified, stripe_customer_id FROM users WHERE id = $1 AND is_active = TRUE',
         [decoded.id]
       );
 
       if (userResult.rows.length === 0) {
+        // User might be inactive or ID from token is no longer valid
         return res.status(401).json({ error: 'User not found, inactive, or JWT token invalid' });
       }
-      req.user = userResult.rows[0] as User; // Cast to our User type
+      req.user = userResult.rows[0]; // pg driver maps rows to objects matching column names.
       return next();
-    } catch (err) {
-      // Log the error for server-side debugging, but return a generic message to client
-      console.error('[Auth] JWT verification error:', err);
-      return res.status(401).json({ error: 'Invalid or expired JWT token' });
+    } catch (err: any) {
+      console.error('[Auth] JWT verification error:', err.name, err.message);
+      if (err.name === 'TokenExpiredError') {
+        return res.status(401).json({ error: 'Token expired. Please log in again.'});
+      }
+      if (err.name === 'JsonWebTokenError') {
+        return res.status(401).json({ error: 'Invalid token. Please log in again.'});
+      }
+      return res.status(401).json({ error: 'Authentication failed. Please log in again.' });
     }
   } else if (scheme.toLowerCase() === 'apikey') {
-    // System API Key Authentication (for sk-fusion-xxx keys)
+    // System API Key Authentication
     if (!tokenOrKey) {
         return res.status(401).json({ error: 'ApiKey value missing' });
     }
-    // Optional: Add prefix check if your system API keys have a specific prefix like 'sk-fusion-'
-    // if (!tokenOrKey.startsWith('sk-fusion-')) {
-    //     return res.status(401).json({ error: 'Invalid API key format for system key.' });
-    // }
     try {
-      const apiKeyResult = await pool.query(
+      const apiKeyResult: QueryResult<{ user_id: number }> = await pool.query(
         'SELECT user_id FROM api_keys WHERE api_key = $1 AND is_active = TRUE',
         [tokenOrKey]
       );
@@ -81,18 +96,16 @@ export const verifyToken = async (req: Request, res: Response, next: NextFunctio
       }
 
       const userId = apiKeyResult.rows[0].user_id;
-      const userResult = await pool.query(
-        'SELECT id, email, display_name as name, role FROM users WHERE id = $1 AND is_active = TRUE',
+      const userResult: QueryResult<User> = await pool.query(
+        'SELECT id, email, display_name as name, role, is_active, is_verified, stripe_customer_id FROM users WHERE id = $1 AND is_active = TRUE',
         [userId]
       );
 
       if (userResult.rows.length === 0) {
-        // This case should ideally not happen if DB foreign keys are set up correctly
-        // and user deactivation also deactivates their API keys or handles this scenario.
         return res.status(401).json({ error: 'User associated with system API key not found or inactive' });
       }
 
-      req.user = userResult.rows[0] as User;
+      req.user = userResult.rows[0];
       return next();
     } catch (err) {
       console.error('[Auth] System API key authentication error:', err);

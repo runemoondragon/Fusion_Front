@@ -8,12 +8,17 @@ CREATE TABLE users (
     password_hash TEXT NOT NULL,
     display_name VARCHAR(100),
     avatar_url TEXT,
-    is_active BOOLEAN DEFAULT TRUE,
+    is_active BOOLEAN DEFAULT TRUE,     -- Account is active, not banned/disabled by admin
+    is_verified BOOLEAN DEFAULT FALSE,  -- Email address has been verified
+    email_verification_token TEXT NULLABLE, -- Stores the current verification token
+    email_verification_token_expires_at TIMESTAMP NULLABLE, -- Expiry for the token
+    email_verified_at TIMESTAMP NULLABLE, -- Timestamp of when email was verified
     role VARCHAR(50) DEFAULT 'user',
     emergency_fallback_tokens_used INTEGER DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    stripe_customer_id VARCHAR(255) UNIQUE
+    stripe_customer_id VARCHAR(255) UNIQUE,
+    name VARCHAR(255) NULL -- This was added later via ALTER, consolidated here
 );
 
 
@@ -86,7 +91,8 @@ CREATE TABLE user_settings (
     user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
     setting_key VARCHAR(255) NOT NULL,
     setting_value TEXT,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (user_id, setting_key)
 );
 
 -- Organizations table
@@ -109,7 +115,7 @@ CREATE TABLE organization_members (
 -- Model preference configuration
 CREATE TABLE model_preferences (
     id SERIAL PRIMARY KEY,
-    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE UNIQUE,
     default_model VARCHAR(255),
     allowed_providers TEXT[],
     ignored_providers TEXT[],
