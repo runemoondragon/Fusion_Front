@@ -87,8 +87,8 @@ export default function VerifyEmailClientContent() {
             </svg>
             <p className="mt-3 text-center text-md font-medium text-green-700">{message}</p>
             <div className="mt-6">
-              <Link href="/login" className="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700 md:py-3 md:text-lg md:px-10 transition-colors">
-                Proceed to Login
+              <Link href="/" className="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700 md:py-3 md:text-lg md:px-10 transition-colors">
+                Go to Homepage to Login
               </Link>
             </div>
           </div>

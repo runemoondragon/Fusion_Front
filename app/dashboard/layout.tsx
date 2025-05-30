@@ -34,8 +34,8 @@ export default function DashboardLayout({
 
   return (
     <ProtectedRoute>
-      <div className="flex h-screen bg-gray-50 overflow-hidden">
-        <div ref={sidebarRef}>
+      <div className="min-h-screen bg-gray-50">
+        <div className="fixed top-[64px] left-0 h-[calc(100%-64px)]" ref={sidebarRef}>
           <Sidebar isOpen={isMobileSidebarOpen} onClose={() => setIsMobileSidebarOpen(false)} />
         </div>
 
@@ -46,7 +46,7 @@ export default function DashboardLayout({
           ></div>
         )}
 
-        <div className="flex-1 flex flex-col overflow-y-auto">
+        <div className="md:ml-64">
           <header className="sticky top-0 z-20 bg-white/80 backdrop-blur-sm shadow-sm md:hidden p-3 border-b border-gray-200">
             <button 
               ref={hamburgerRef}
@@ -58,7 +58,7 @@ export default function DashboardLayout({
             </button>
           </header>
 
-          <main className="flex-1 p-4 md:p-6 lg:p-8">
+          <main className="p-4 md:p-6 lg:p-8">
             {children}
           </main>
         </div>

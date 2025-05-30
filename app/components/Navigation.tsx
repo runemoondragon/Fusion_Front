@@ -138,6 +138,9 @@ export default function Navigation() {
 
                 {isDropdownOpen && (
                   <div className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-50">
+                    <Link href="/chat" onClick={() => setIsDropdownOpen(false)} className="flex items-center px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-100">
+                      <Search className="mr-2 h-4 w-4 text-neutral-500"/> Chat
+                    </Link>
                     <Link href="/dashboard/credits" onClick={() => setIsDropdownOpen(false)} className="flex items-center px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-100">
                       <CreditCard className="mr-2 h-4 w-4 text-neutral-500"/> Credits
                     </Link>

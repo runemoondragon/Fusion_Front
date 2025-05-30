@@ -27,11 +27,11 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
   return (
     <aside 
-      className={`fixed inset-y-0 left-0 z-40 w-64 bg-white border-r border-gray-200 transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 md:shadow-none ${
+      className={`fixed inset-y-0 left-0 z-40 w-64 bg-white border-r border-gray-200 transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 md:h-screen md:shadow-none ${
         isOpen ? 'translate-x-0' : '-translate-x-full'
       }`}
     >
-      <div className="p-6">
+      <div className="h-full p-6 overflow-y-auto">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-lg font-semibold text-gray-900">Dashboard</h2>
           <button 
