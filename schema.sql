@@ -1,13 +1,11 @@
 -- Drop old tables if they exist (clean slate)
-DROP TABLE IF EXISTS user_settings;
-
-
+DROP TABLE IF EXISTS user_settings,model_preferences,api_keys,users,app_config;
 
 -- Users table
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     email VARCHAR(255) UNIQUE NOT NULL,
-    password_hash TEXT NOT NULL,
+    password_hash TEXT NOT NULL, -- For local accounts; can be a placeholder for OAuth-only users
     display_name VARCHAR(100),
     avatar_url TEXT,
     is_active BOOLEAN DEFAULT TRUE,     -- Account is active, not banned/disabled by admin
@@ -16,13 +14,14 @@ CREATE TABLE users (
     email_verification_token_expires_at TIMESTAMP NULLABLE, -- Expiry for the token
     email_verified_at TIMESTAMP NULLABLE, -- Timestamp of when email was verified
     role VARCHAR(50) DEFAULT 'user',
+    oauth_provider VARCHAR(50) NULLABLE, -- For OAuth users (e.g., 'google', 'microsoft')
+    oauth_id TEXT NULLABLE,             -- OAuth provider's unique ID for the user
     emergency_fallback_tokens_used INTEGER DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     stripe_customer_id VARCHAR(255) UNIQUE,
-    name VARCHAR(255) NULL -- This was added later via ALTER, consolidated here
+    name VARCHAR(255) NULL -- From original schema, might be same as display_name or separate
 );
-
 
 -- API keys table
 CREATE TABLE api_keys (
@@ -94,7 +93,7 @@ CREATE TABLE user_settings (
     setting_key VARCHAR(255) NOT NULL,
     setting_value TEXT,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE (user_id, setting_key)
+    UNIQUE (user_id, setting_key) -- Ensures ON CONFLICT works for setupNewUserDefaults
 );
 
 -- Organizations table
@@ -117,7 +116,7 @@ CREATE TABLE organization_members (
 -- Model preference configuration
 CREATE TABLE model_preferences (
     id SERIAL PRIMARY KEY,
-    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE UNIQUE,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE UNIQUE, -- Ensures ON CONFLICT works for setupNewUserDefaults
     default_model VARCHAR(255),
     allowed_providers TEXT[],
     ignored_providers TEXT[],
