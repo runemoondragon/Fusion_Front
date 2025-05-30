@@ -1,5 +1,14 @@
 -- Drop old tables if they exist (clean slate)
-DROP TABLE IF EXISTS user_settings,model_preferences,api_keys,users,app_config;
+DROP TABLE IF EXISTS user_settings,model_preferences,api_keys,users,payments,credit_transactions,user_credits,user_auto_topup_settings,models,user_external_api_keys,admin_actions_logs,app_config,chats,messages,usage_logs,organizations,organization_members,providers; -- Ensure all tables are listed for a clean drop, and app_config is only once.
+
+-- Generic function to update an updated_at timestamp column
+CREATE OR REPLACE FUNCTION trigger_set_timestamp()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
 
 -- Users table
 CREATE TABLE users (
@@ -54,24 +63,6 @@ CREATE TABLE messages (
     provider TEXT, -- Actual provider for assistant messages (e.g., OpenAI, Claude) or NULL/User for user messages
     model_used TEXT, -- Specific model used (e.g., gpt-4-turbo) or NULL
     timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP -- Or 'created_at'
-);
-
--- Usage logs table
-CREATE TABLE usage_logs (
-    id SERIAL PRIMARY KEY,
-    user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
-    api_key_id INTEGER REFERENCES user_external_api_keys(id) ON DELETE SET NULL,
-    request_model VARCHAR(255) DEFAULT NULL,
-    model VARCHAR(255),
-    provider VARCHAR(255),
-    prompt_tokens INTEGER DEFAULT 0,
-    completion_tokens INTEGER DEFAULT 0,
-    total_tokens INTEGER DEFAULT 0,
-    cost NUMERIC(10,6) DEFAULT 0.000000,
-    neuroswitch_fee NUMERIC(10,4) DEFAULT 0.0000,
-    fallback_reason TEXT,
-    response_time INTEGER,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Payments table
@@ -133,11 +124,6 @@ CREATE TABLE providers (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Indexes for performance
-CREATE INDEX IF NOT EXISTS idx_usage_logs_user_id ON usage_logs(user_id);
-CREATE INDEX IF NOT EXISTS idx_usage_logs_created_at ON usage_logs(created_at);
-CREATE INDEX IF NOT EXISTS idx_organization_members_user_id ON organization_members(user_id);
-
 -- User Credits table
 CREATE TABLE user_credits (
     user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
@@ -157,31 +143,16 @@ CREATE TABLE credit_transactions (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Function to update user_credits.updated_at timestamp
-CREATE OR REPLACE FUNCTION update_user_credits_updated_at_column()
-RETURNS TRIGGER AS $$
-BEGIN
-   NEW.updated_at = NOW(); 
-   RETURN NEW;
-END;
-$$ language 'plpgsql';
-
--- Trigger to automatically update updated_at on user_credits table
-CREATE TRIGGER update_user_credits_modtime
+-- Use the generic trigger_set_timestamp for user_credits
+CREATE TRIGGER set_timestamp_user_credits
 BEFORE UPDATE ON user_credits
 FOR EACH ROW
-EXECUTE FUNCTION update_user_credits_updated_at_column();
+EXECUTE PROCEDURE trigger_set_timestamp();
 
 -- Index for credit_transactions for faster lookups
 CREATE INDEX IF NOT EXISTS idx_credit_transactions_user_id ON credit_transactions(user_id);
 CREATE INDEX IF NOT EXISTS idx_credit_transactions_status ON credit_transactions(status);
 CREATE INDEX IF NOT EXISTS idx_credit_transactions_method ON credit_transactions(method);
-
--- Trigger for user_credits updated_at
-CREATE TRIGGER set_timestamp_user_credits
-BEFORE UPDATE ON user_credits
-FOR EACH ROW
-EXECUTE PROCEDURE trigger_set_timestamp();
 
 -- Table for storing user's auto top-up settings
 CREATE TABLE user_auto_topup_settings (
@@ -194,7 +165,7 @@ CREATE TABLE user_auto_topup_settings (
     last4 VARCHAR(4) NULL,                        -- Last 4 digits of the card
     card_brand VARCHAR(50) NULL,                  -- Card brand (e.g., Visa, Mastercard)
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW() -- Make sure this is TIMESTAMPTZ if trigger_set_timestamp uses NOW() which returns TIMESTAMPTZ
 );
 
 -- Index on user_id for faster lookups
@@ -229,7 +200,7 @@ CREATE TABLE IF NOT EXISTS models (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Add trigger to update updated_at timestamp
+-- Function to update updated_at_column (This is another generic timestamp function. Consolidate if possible or ensure specific use)
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -243,7 +214,7 @@ CREATE TRIGGER update_models_updated_at
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
--- User External API Keys table (for BYOAPI)
+-- User External API Keys table (for BYOAPI) - MOVED EARLIER
 CREATE TABLE IF NOT EXISTS user_external_api_keys (
     id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -252,8 +223,6 @@ CREATE TABLE IF NOT EXISTS user_external_api_keys (
     encrypted_api_key TEXT NOT NULL,
     key_preview VARCHAR(50), -- e.g., "sk-abc...xyz" for UI display
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
-    -- Recommended for future: is_valid BOOLEAN DEFAULT FALSE,
-    -- Recommended for future: last_validated_at TIMESTAMP,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     UNIQUE (user_id, provider_id) -- Ensures one key per provider per user
@@ -263,11 +232,34 @@ CREATE TABLE IF NOT EXISTS user_external_api_keys (
 CREATE TRIGGER update_user_external_api_keys_updated_at
     BEFORE UPDATE ON user_external_api_keys
     FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
+    EXECUTE FUNCTION update_updated_at_column(); -- Assuming this uses the second generic timestamp func
 
 -- Indexes for user_external_api_keys
 CREATE INDEX IF NOT EXISTS idx_ueak_user_id ON user_external_api_keys(user_id);
 CREATE INDEX IF NOT EXISTS idx_ueak_provider_id ON user_external_api_keys(provider_id); 
+
+-- Usage logs table - Now user_external_api_keys exists
+CREATE TABLE usage_logs (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    api_key_id INTEGER REFERENCES user_external_api_keys(id) ON DELETE SET NULL, -- This should now work
+    request_model VARCHAR(255) DEFAULT NULL,
+    model VARCHAR(255),
+    provider VARCHAR(255),
+    prompt_tokens INTEGER DEFAULT 0,
+    completion_tokens INTEGER DEFAULT 0,
+    total_tokens INTEGER DEFAULT 0,
+    cost NUMERIC(10,6) DEFAULT 0.000000,
+    neuroswitch_fee NUMERIC(10,4) DEFAULT 0.0000,
+    fallback_reason TEXT,
+    response_time INTEGER,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Indexes for performance (moved after their table definitions)
+CREATE INDEX IF NOT EXISTS idx_usage_logs_user_id ON usage_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_usage_logs_created_at ON usage_logs(created_at);
+CREATE INDEX IF NOT EXISTS idx_organization_members_user_id ON organization_members(user_id);
 
 -- Table for logging actions performed by administrators
 CREATE TABLE admin_actions_logs (
@@ -286,8 +278,6 @@ CREATE INDEX idx_admin_actions_logs_admin_user_id ON admin_actions_logs(admin_us
 CREATE INDEX idx_admin_actions_logs_action_type ON admin_actions_logs(action_type);
 CREATE INDEX idx_admin_actions_logs_target_entity_id ON admin_actions_logs(target_entity_id);
 CREATE INDEX idx_admin_actions_logs_timestamp ON admin_actions_logs(timestamp DESC);
-
--- Consider adding other tables like feature_flags or platform_settings later as needed 
 
 -- Table for global application configuration settings
 CREATE TABLE IF NOT EXISTS app_config (
