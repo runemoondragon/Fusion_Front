@@ -529,10 +529,13 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
   // Add effect for auto-scrolling
   useEffect(() => {
-    if (!isManualScrolling && messages.length > 0) {
+    const lastMessage = messages[messages.length - 1];
+    const isNewMessage = lastMessage && (lastMessage.isLoading || !lastMessage.id);
+    
+    if (messages.length > 0 && (isNewMessage || !isManualScrolling)) {
       scrollToBottom();
     }
-  }, [messages, isManualScrolling]);
+  }, [messages]); // Only depend on messages, not isManualScrolling
 
   const renderMessages = () => (
     messages.map((msg, index) => {

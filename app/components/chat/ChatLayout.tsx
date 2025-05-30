@@ -111,15 +111,12 @@ const ChatLayout: React.FC<ChatLayoutProps> = () => {
   // Handle scroll detection
   useEffect(() => {
     const handleScroll = () => {
-      setIsManualScrolling(true);
-      
-      // Reset after user stops scrolling for 1 second
-      if (scrollTimeout.current) {
-        clearTimeout(scrollTimeout.current);
-      }
-      scrollTimeout.current = setTimeout(() => {
-        setIsManualScrolling(false);
-      }, 1000);
+      const chatContainer = document.querySelector('.chat-messages-container');
+      if (!chatContainer) return;
+
+      // Calculate if we're near the bottom (within 100px)
+      const isNearBottom = chatContainer.scrollHeight - chatContainer.scrollTop - chatContainer.clientHeight < 100;
+      setIsManualScrolling(!isNearBottom);
     };
     
     const chatContainer = document.querySelector('.chat-messages-container');
@@ -131,14 +128,8 @@ const ChatLayout: React.FC<ChatLayoutProps> = () => {
       if (chatContainer) {
         chatContainer.removeEventListener('scroll', handleScroll);
       }
-      if (scrollTimeout.current) {
-        clearTimeout(scrollTimeout.current);
-      }
     };
   }, []);
-  
-  // Ref for the scroll timeout
-  const scrollTimeout = useRef<NodeJS.Timeout | null>(null);
 
   const handleLogout = () => {
     clearUser();
