@@ -1,10 +1,6 @@
 -- Drop old tables if they exist (clean slate)
-DROP TABLE IF EXISTS user_settings CASCADE;
-DROP TABLE IF EXISTS model_preferences CASCADE;
-DROP TABLE IF EXISTS api_keys CASCADE;
--- Drop users table last among these specific ones, as others reference it.
--- However, with CASCADE, the order is less critical but good practice.
-DROP TABLE IF EXISTS users CASCADE;
+DROP TABLE IF EXISTS user_settings;
+
 
 
 -- Users table

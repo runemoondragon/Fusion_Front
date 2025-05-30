@@ -2,6 +2,7 @@
 
 import React, { createContext, useState, useEffect, useContext, useCallback, ReactNode } from 'react';
 import apiClient from '../lib/apiClient'; // Import the centralized API client using relative path
+import axios from 'axios'; // Added for axios import
 
 // Define the shape of the user profile data
 export interface UserProfile {
@@ -53,8 +54,17 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
 
         try {
-            // apiClient will automatically use the correct baseURL and add the Authorization header
-            const response = await apiClient.get<UserProfile>('/profile');
+            // Construct full URL for /user/profile using NEXT_PUBLIC_API_URL as it's not under /api
+            const profileUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/user/profile`;
+            
+            // Need to use axios directly here or ensure apiClient can handle absolute URLs if different from its base
+            // For simplicity, using axios directly with the token interceptor concept:
+            const headers: Record<string, string> = {};
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+
+            const response = await axios.get<UserProfile>(profileUrl, { headers });
             setUser(response.data);
         } catch (error) {
             console.error("UserContext: Failed to fetch user profile:", error);
