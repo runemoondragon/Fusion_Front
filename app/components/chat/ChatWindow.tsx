@@ -1002,9 +1002,17 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                 </div>
               </div>
             </form>
-            <p className="text-xs text-gray-500 pt-2 text-center">
-              By messaging ChatGPT, you agree to our Terms and have read our Privacy Policy.
-            </p>
+            <p className="text-xs text-gray-500 text-center mt-4">
+  By messaging, you agree to our{' '}
+  <a href="/terms" className="underline hover:text-blue-600" target="_blank" rel="noopener noreferrer">
+    Terms
+  </a>
+  {' '}and have read our{' '}
+  <a href="/privacy" className="underline hover:text-blue-600" target="_blank" rel="noopener noreferrer">
+    Privacy Policy
+  </a>
+  .
+</p>
           </div>
         </div>
       )}
