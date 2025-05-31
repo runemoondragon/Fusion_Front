@@ -134,7 +134,9 @@
 html, body {
   overscroll-behavior-y: none; /* Prevents pull-to-refresh on mobile */
 }
-
+.textarea-placeholder-sm::placeholder {
+  font-size: 0.875rem; /* Equivalent to Tailwind's text-sm */
+}
 /* JavaScript helper to fix mobile viewport height issues */
 @layer utilities {
   .chat-messages-container {
