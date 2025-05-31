@@ -779,243 +779,103 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   
   return (
     <div className="flex flex-col h-full w-full relative font-sans px-0 md:px-0">
-      
-      {/* Message Area: Ensure padding from parent is respected and add top padding for header */}
-      <div className="flex-1 overflow-y-auto pt-16 pb-48 chat-messages-container">
-        {/* Centered, max-width container for messages. Horizontal padding is now px-2, was px-2 before. */}
-        <div className="mx-auto w-full max-w-3xl px-2">
-          {isLoadingMessages ? (
-              <div className="flex justify-center items-center h-full text-base text-gray-600">Loading messages...</div>
-          ) : renderMessages()}
+      <div className="flex-1 overflow-y-auto pt-16 chat-messages-container flex flex-col">
+        <div
+          className={`mx-auto w-full max-w-3xl px-2 ${
+            !hasMessages
+              ? 'flex-1 flex flex-col items-center justify-center text-center'
+              : 'pb-4'
+          }`}
+        >
+          {isLoadingMessages && messages.length === 0 ? (
+            <div className="flex justify-center items-center h-full text-base text-gray-600">
+              Loading messages...
+            </div>
+          ) : !hasMessages ? (
+            <div className="flex flex-col items-center w-full">
+              <h1 className="text-2xl md:text-3xl font-medium text-gray-700 mb-6 md:mb-8 pointer-events-auto">
+                {user?.displayName ? `Good to see you, ${user.displayName}.` : 'Good to see you.'}
+              </h1>
+              <div className="w-full max-w-xl md:max-w-2xl pointer-events-auto">
+                <form onSubmit={handleSend} className="relative w-full bg-white rounded-lg border border-gray-300 p-3 shadow-xl">
+                  {imagePreview && (
+                    <div className="mb-2 flex justify-center">
+                      <div className="relative inline-block">
+                        <img className="max-h-20 sm:max-h-28 rounded-lg" src={imagePreview} alt="Preview" />
+                        <button type="button" onClick={handleRemoveImage} className="absolute -top-1.5 -right-1.5 bg-gray-200 hover:bg-gray-300 rounded-full p-1 shadow-md h-7 w-7 flex items-center justify-center min-w-7 min-h-7" title="Remove image">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-600" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  <div className="flex items-end space-x-2 w-full">
+                    <button type="button" onClick={handleImageUploadClick} className="p-2.5 text-gray-500 hover:text-gray-700 h-10 w-10 flex items-center justify-center min-w-10 min-h-10" title="Upload Image">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                    </button>
+                    <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*" />
+                    <textarea ref={textareaRef} value={input} onChange={handleTextareaChange} onKeyDown={handleKeyDown} rows={1} className="flex-1 border-0 bg-transparent p-2 focus:ring-0 focus:outline-none resize-none max-h-32 overflow-y-auto min-h-[2.5rem] text-base w-full textarea-placeholder-sm" placeholder="Ask a question..." style={{ height: '40px' }} />
+                    <button type="submit" disabled={loading || (!input.trim() && !imageData)} className={`p-2.5 text-blue-600 hover:text-blue-700 h-10 w-10 flex items-center justify-center min-w-10 min-h-10 ${loading || (!input.trim() && !imageData) ? 'opacity-50 cursor-not-allowed' : ''}`} title="Send Message">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" /></svg>
+                    </button>
+                  </div>
+                  <div className="mt-3 overflow-x-auto feature-buttons-container w-full">
+                    <div className="flex items-center flex-wrap gap-1.5 justify-center">
+                      {[ { key: 'deep_research', label: 'Deep Research', icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 2a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V4a2 2 0 00-2-2H4zm3.5 4.5a.5.5 0 01.5-.5h5a.5.5 0 010 1h-5a.5.5 0 01-.5-.5zm0 2a.5.5 0 01.5-.5h5a.5.5 0 010 1h-5a.5.5 0 01-.5-.5zm0 2a.5.5 0 01.5-.5h2a.5.5 0 010 1h-2a.5.5 0 01-.5-.5z" clipRule="evenodd" /></svg> }, { key: 'think', label: 'Think', icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" /></svg> }, { key: 'write_code', label: 'Write/Code', icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.316 3.051a1 1 0 01.633 1.265l-4 12a1 1 0 11-1.898-.632l4-12a1 1 0 011.265-.633zM5.707 6.293a1 1 0 010 1.414L3.414 10l2.293 2.293a1 1 0 11-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0zm8.586 0a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 11-1.414-1.414L16.586 10l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" /></svg> }, { key: 'image', label: 'Image', icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" /></svg> }, ].map((mode) => ( <button key={mode.key} type="button" onClick={() => handleModeButtonClick(mode.key)} className={`feature-button inline-flex items-center p-2 sm:px-2.5 sm:py-1.5 rounded-md border text-xs sm:text-sm whitespace-nowrap h-9 min-h-9 ${currentMode === mode.key ? 'bg-blue-100 text-blue-700 border-blue-300' : 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200'}`}> {mode.icon} <span className="hidden sm:inline">{mode.label}</span> </button> ))}
+                    </div>
+                  </div>
+                </form>
+                <p className="text-xs text-gray-500 mt-4 text-center pointer-events-auto">
+                  By messaging, you agree to our <a href="/terms" className="underline hover:text-blue-600" target="_blank" rel="noopener noreferrer">Terms</a> and have read our <a href="/privacy" className="underline hover:text-blue-600" target="_blank" rel="noopener noreferrer">Privacy Policy</a>.
+                </p>
+              </div>
+            </div>
+          ) : (
+            renderMessages()
+          )}
           <div ref={messagesEndRef} />
         </div>
-      </div>
 
-      {/* Chat Input Area - Conditionally Rendered */}
-      {!hasMessages ? (
-        // Centered, floating input and welcome message if there are no messages
-        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none p-4">
-          <h1 className="text-2xl md:text-3xl font-medium text-gray-700 mb-6 md:mb-8 text-center pointer-events-auto">
-            {user?.displayName ? `Good to see you, ${user.displayName}.` : 'Good to see you.'}
-          </h1>
-          <div className="w-full max-w-xl md:max-w-2xl pointer-events-auto"> {/* Input area itself */}
-            {/* Copied Form Structure for Centered Input */}
-            <form onSubmit={handleSend} className="relative w-full bg-white rounded-lg border border-gray-300 p-3 shadow-xl"> {/* Unified card */}
-              {imagePreview && (
-                <div className="mb-2 flex justify-center"> {/* Centered image preview, increased mb */}
-                  <div className="relative inline-block">
-                    <img
-                      className="max-h-20 sm:max-h-28 rounded-lg" /* Slightly larger preview */
-                      src={imagePreview}
-                      alt="Preview"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleRemoveImage}
-                      className="absolute -top-1.5 -right-1.5 bg-gray-200 hover:bg-gray-300 rounded-full p-1 shadow-md h-7 w-7 flex items-center justify-center min-w-7 min-h-7" /* Adjusted size/style */
-                      title="Remove image"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-600" viewBox="0 0 20 20" fill="currentColor"> /* Adjusted size/color */
-                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                      </svg>
-                    </button>
+        {hasMessages && (
+          <div className="input-wrapper mt-auto pt-4 w-full bg-transparent z-10">
+            <div className="max-w-5xl mx-auto px-2 md:px-3 w-full">
+              <form onSubmit={handleSend} className="relative w-full bg-white rounded-lg border border-gray-200 p-2 shadow-md">
+                {imagePreview && (
+                  <div className="mb-1">
+                    <div className="relative inline-block">
+                      <img className="max-h-16 sm:max-h-24 rounded-lg" src={imagePreview} alt="Preview" />
+                      <button type="button" onClick={handleRemoveImage} className="absolute -top-1 -right-1 sm:-top-2 sm:-right-2 bg-white rounded-full p-1.5 shadow-sm hover:bg-gray-100 h-10 w-10 flex items-center justify-center min-w-10 min-h-10" title="Remove image">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-500" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
+                      </button>
+                    </div>
+                  </div>
+                )}
+                <div className="mb-2 text-sm text-gray-500">
+                  <span>Tokens Used: {tokensUsed} / {maxTokens} ({Math.floor((tokensUsed / maxTokens) * 100)}%)</span>
+                  <div className="w-full bg-gray-200 h-2 rounded"><div className="bg-blue-500 h-2 rounded" style={{ width: `${Math.min((tokensUsed / maxTokens) * 100, 100)}%` }}></div></div>
+                </div>
+                <div className="flex items-end space-x-2 w-full">
+                  <button type="button" onClick={handleImageUploadClick} className="p-2.5 text-gray-500 hover:text-gray-700 h-10 w-10 flex items-center justify-center min-w-10 min-h-10" title="Upload Image">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                  </button>
+                  <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*" />
+                  <textarea ref={textareaRef} value={input} onChange={handleTextareaChange} onKeyDown={handleKeyDown} rows={1} className="flex-1 border-0 bg-transparent p-2 focus:ring-0 focus:outline-none resize-none max-h-32 overflow-y-auto min-h-[2.5rem] text-base w-full textarea-placeholder-sm" placeholder="Enter to send, Shift+Enter for new line" style={{ height: '50px' }} />
+                  <button type="submit" disabled={loading || (!input.trim() && !imageData)} className={`p-2.5 text-blue-600 hover:text-blue-700 h-10 w-10 flex items-center justify-center min-w-10 min-h-10 ${loading || (!input.trim() && !imageData) ? 'opacity-50 cursor-not-allowed' : ''}`} title="Send Message">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" /></svg>
+                  </button>
+                </div>
+                <div className="mt-2 overflow-x-auto pb-1 feature-buttons-container w-full">
+                  <div className="flex items-center flex-wrap gap-1.5 justify-center">
+                    {[ { key: 'deep_research', label: 'Deep Research', icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 2a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V4a2 2 0 00-2-2H4zm3.5 4.5a.5.5 0 01.5-.5h5a.5.5 0 010 1h-5a.5.5 0 01-.5-.5zm0 2a.5.5 0 01.5-.5h5a.5.5 0 010 1h-5a.5.5 0 01-.5-.5zm0 2a.5.5 0 01.5-.5h2a.5.5 0 010 1h-2a.5.5 0 01-.5-.5z" clipRule="evenodd" /></svg> }, { key: 'think', label: 'Think', icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" /></svg> }, { key: 'write_code', label: 'Write/Code', icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.316 3.051a1 1 0 01.633 1.265l-4 12a1 1 0 11-1.898-.632l4-12a1 1 0 011.265-.633zM5.707 6.293a1 1 0 010 1.414L3.414 10l2.293 2.293a1 1 0 11-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0zm8.586 0a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 11-1.414-1.414L16.586 10l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" /></svg> }, { key: 'image', label: 'Image', icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" /></svg> }, ].map((mode) => ( <button key={mode.key} type="button" onClick={() => handleModeButtonClick(mode.key)} className={`feature-button inline-flex items-center p-2 sm:px-2.5 sm:py-1.5 rounded-md border text-xs sm:text-sm whitespace-nowrap h-9 min-h-9 ${currentMode === mode.key ? 'bg-blue-100 text-blue-700 border-blue-300' : 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200'}`}> {mode.icon} <span className="hidden sm:inline">{mode.label}</span> </button> ))}
                   </div>
                 </div>
-              )}
-              {/* Token usage bar can be optional for centered view or simplified */}
-              {/* <div className="mb-2 text-sm text-gray-500"> ... Token Bar ... </div> */}
-              <div className="flex items-end space-x-2 w-full"> {/* Removed card styling from here, parent form has it */}
-                <button
-                  type="button"
-                  onClick={handleImageUploadClick}
-                  className="p-2.5 text-gray-500 hover:text-gray-700 h-10 w-10 flex items-center justify-center min-w-10 min-h-10" /* Consistent with bottom view */
-                  title="Upload Image"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                </button>
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleFileChange}
-                  className="hidden"
-                  accept="image/*"
-                />
-                <textarea
-                  ref={textareaRef}
-                  value={input}
-                  onChange={handleTextareaChange}
-                  onKeyDown={handleKeyDown}
-                  rows={1}
-                  className="flex-1 border-0 bg-transparent p-2 focus:ring-0 focus:outline-none resize-none max-h-32 overflow-y-auto min-h-[2.5rem] text-base w-full" /* max-h increased */
-                  placeholder="Ask a question..." /* New placeholder */
-                  style={{ height: '40px' }}
-                />
-                <button
-                  type="submit"
-                  disabled={loading || (!input.trim() && !imageData)}
-                  className={`p-2.5 text-blue-600 hover:text-blue-700 h-10 w-10 flex items-center justify-center min-w-10 min-h-10 ${loading || (!input.trim() && !imageData) ? 'opacity-50 cursor-not-allowed' : ''}`} /* Consistent with bottom view */
-                  title="Send Message"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
-                  </svg>
-                </button>
-              </div>
-              <div className="mt-3 overflow-x-auto feature-buttons-container w-full"> {/* Increased mt */}
-                <div className="flex items-center flex-wrap gap-1.5 justify-center"> {/* flex-wrap, gap, justify-center */}
-                  {[
-                    { key: 'deep_research', label: 'Deep Research', icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 2a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V4a2 2 0 00-2-2H4zm3.5 4.5a.5.5 0 01.5-.5h5a.5.5 0 010 1h-5a.5.5 0 01-.5-.5zm0 2a.5.5 0 01.5-.5h5a.5.5 0 010 1h-5a.5.5 0 01-.5-.5zm0 2a.5.5 0 01.5-.5h2a.5.5 0 010 1h-2a.5.5 0 01-.5-.5z" clipRule="evenodd" /></svg> },
-                    { key: 'think', label: 'Think', icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" /></svg> },
-                    { key: 'write_code', label: 'Write/Code', icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.316 3.051a1 1 0 01.633 1.265l-4 12a1 1 0 11-1.898-.632l4-12a1 1 0 011.265-.633zM5.707 6.293a1 1 0 010 1.414L3.414 10l2.293 2.293a1 1 0 11-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0zm8.586 0a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 11-1.414-1.414L16.586 10l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" /></svg> },
-                    { key: 'image', label: 'Image', icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" /></svg> },
-                  ].map((mode) => (
-                    <button
-                      key={mode.key}
-                      type="button"
-                      onClick={() => handleModeButtonClick(mode.key)}
-                      className={`feature-button inline-flex items-center p-2 sm:px-2.5 sm:py-1.5 rounded-md border text-xs sm:text-sm whitespace-nowrap h-9 min-h-9
-                        ${currentMode === mode.key
-                          ? 'bg-blue-100 text-blue-700 border-blue-300'
-                          : 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200'}`}
-                    >
-                      {mode.icon}
-                      <span className="hidden sm:inline">{mode.label}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </form>
-            <p className="text-xs text-gray-500 text-center mt-4">
-  By messaging, you agree to our{' '}
-  <a href="/terms" className="underline hover:text-blue-600" target="_blank" rel="noopener noreferrer">
-    Terms
-  </a>
-  {' '}and have read our{' '}
-  <a href="/privacy" className="underline hover:text-blue-600" target="_blank" rel="noopener noreferrer">
-    Privacy Policy
-  </a>
-  .
-</p>
+              </form>
+              <p className="text-xs text-gray-500 pt-2 text-center">
+              All can make mistakes. Check important info. 
+              </p>
+            </div>
           </div>
-        </div>
-      ) : (
-        // Fixed at the bottom if there are messages
-        <div className="input-wrapper mt-auto pt-2 border-t pb-safe fixed bottom-0 left-0 right-0 w-full bg-gray-100 z-10">
-          {/* Inner container for input elements, respects parent padding on mobile, specific padding on md+ */}
-          <div className="max-w-5xl mx-auto px-2 md:px-3 w-full">
-            <form onSubmit={handleSend} className="relative w-full bg-white rounded-lg border border-gray-300 p-2 shadow-md"> {/* Unified card for bottom view as well */}
-              {imagePreview && (
-                <div className="mb-1">
-                  <div className="relative inline-block">
-                    <img
-                      className="max-h-16 sm:max-h-24 rounded-lg"
-                      src={imagePreview}
-                      alt="Preview"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleRemoveImage}
-                      className="absolute -top-1 -right-1 sm:-top-2 sm:-right-2 bg-white rounded-full p-1.5 shadow-sm hover:bg-gray-100 h-10 w-10 flex items-center justify-center min-w-10 min-h-10"
-                      title="Remove image"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-500" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-              )}
-              <div className="mb-2 text-sm text-gray-500">
-                <span>
-                  Tokens Used: {tokensUsed} / {maxTokens} ({Math.floor((tokensUsed / maxTokens) * 100)}%)
-                </span>
-                <div className="w-full bg-gray-200 h-2 rounded">
-                  <div
-                    className="bg-blue-500 h-2 rounded"
-                    style={{ width: `${Math.min((tokensUsed / maxTokens) * 100, 100)}%` }}
-                  ></div>
-                </div>
-              </div>
-              <div className="flex items-end space-x-2 w-full"> {/* Removed card styling from here */}
-                <button
-                  type="button"
-                  onClick={handleImageUploadClick}
-                  className="p-2.5 text-gray-500 hover:text-gray-700 h-10 w-10 flex items-center justify-center min-w-10 min-h-10"
-                  title="Upload Image"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                </button>
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleFileChange}
-                  className="hidden"
-                  accept="image/*"
-                />
-                <textarea
-                  ref={textareaRef}
-                  value={input}
-                  onChange={handleTextareaChange}
-                  onKeyDown={handleKeyDown}
-                  rows={1}
-                  className="flex-1 border-0 bg-transparent p-2 focus:ring-0 focus:outline-none resize-none max-h-32 overflow-y-auto min-h-[2.5rem] text-base w-full textarea-placeholder-sm" /* max-h increased */
-                  placeholder="Enter to send, Shift+Enter for new line"
-                  style={{ height: '50px' }}
-                />
-                <button
-                  type="submit"
-                  disabled={loading || (!input.trim() && !imageData)}
-                  className={`p-2.5 text-blue-600 hover:text-blue-700 h-10 w-10 flex items-center justify-center min-w-10 min-h-10 ${loading || (!input.trim() && !imageData) ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  title="Send Message"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
-                  </svg>
-                </button>
-              </div>
-              
-              <div className="mt-2 overflow-x-auto pb-1 feature-buttons-container w-full">
-                <div className="flex items-center flex-wrap gap-1.5 justify-center"> {/* flex-wrap, gap, justify-center */}
-                  {[
-                    { key: 'deep_research', label: 'Deep Research', icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 2a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V4a2 2 0 00-2-2H4zm3.5 4.5a.5.5 0 01.5-.5h5a.5.5 0 010 1h-5a.5.5 0 01-.5-.5zm0 2a.5.5 0 01.5-.5h5a.5.5 0 010 1h-5a.5.5 0 01-.5-.5zm0 2a.5.5 0 01.5-.5h2a.5.5 0 010 1h-2a.5.5 0 01-.5-.5z" clipRule="evenodd" /></svg> },
-                    { key: 'think', label: 'Think', icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" /></svg> },
-                    { key: 'write_code', label: 'Write/Code', icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.316 3.051a1 1 0 01.633 1.265l-4 12a1 1 0 11-1.898-.632l4-12a1 1 0 011.265-.633zM5.707 6.293a1 1 0 010 1.414L3.414 10l2.293 2.293a1 1 0 11-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0zm8.586 0a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 11-1.414-1.414L16.586 10l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" /></svg> },
-                    { key: 'image', label: 'Image', icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" /></svg> },
-                  ].map((mode) => (
-                    <button
-                      key={mode.key}
-                      type="button"
-                      onClick={() => handleModeButtonClick(mode.key)}
-                      className={`feature-button inline-flex items-center p-2 sm:px-2.5 sm:py-1.5 rounded-md border text-xs sm:text-sm whitespace-nowrap h-9 min-h-9
-                        ${currentMode === mode.key
-                          ? 'bg-blue-100 text-blue-700 border-blue-300'
-                          : 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200'}`}
-                    >
-                      {mode.icon}
-                      <span className="hidden sm:inline">{mode.label}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </form>
-            <p className="text-xs text-gray-500 text-center mt-4">
-  By messaging, you agree to our{' '}
-  <a href="/terms" className="underline hover:text-blue-600" target="_blank" rel="noopener noreferrer">
-    Terms
-  </a>
-  {' '}and have read our{' '}
-  <a href="/privacy" className="underline hover:text-blue-600" target="_blank" rel="noopener noreferrer">
-    Privacy Policy
-  </a>
-  .
-</p>
-          </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };

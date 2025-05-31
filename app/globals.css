@@ -10,14 +10,6 @@
     'Helvetica Neue', Arial, sans-serif;
   --foreground-rgb: 0, 0, 0;
   --background-rgb: 255, 255, 255;
-  --app-height: 100%;
-}
-
-/* Mobile viewport height fix */
-@supports (-webkit-touch-callout: none) {
-  .h-screen {
-    height: var(--app-height);
-  }
 }
 
 @layer base {
@@ -136,11 +128,4 @@ html, body {
 }
 .textarea-placeholder-sm::placeholder {
   font-size: 0.875rem; /* Equivalent to Tailwind's text-sm */
-}
-/* JavaScript helper to fix mobile viewport height issues */
-@layer utilities {
-  .chat-messages-container {
-    /* Space for header + input area to avoid content being hidden */
-    max-height: calc(100vh - 130px);
-  }
 }

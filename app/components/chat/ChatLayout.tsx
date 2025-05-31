@@ -442,29 +442,9 @@ const ChatLayout: React.FC<ChatLayoutProps> = () => {
     setExpandedProvider(prev => prev === providerKey ? null : providerKey);
   };
 
-  // Handle mobile viewport height
-  useEffect(() => {
-    // Fix for mobile viewport height
-    const appHeight = () => {
-      const doc = document.documentElement;
-      doc.style.setProperty('--app-height', `${window.innerHeight}px`);
-    };
-    
-    window.addEventListener('resize', appHeight);
-    window.addEventListener('orientationchange', appHeight);
-    
-    // Initial call
-    appHeight();
-    
-    return () => {
-      window.removeEventListener('resize', appHeight);
-      window.removeEventListener('orientationchange', appHeight);
-    };
-  }, []);
-
   return (
     <>
-    <div className="flex h-screen w-full bg-neutral-20 relative overflow-hidden"> 
+    <div className="flex h-full w-full bg-neutral-20 relative overflow-hidden"> 
       {/* Mobile sidebar overlay - appears when sidebar is open on mobile */}
       {isSidebarOpen && (
         <div 
@@ -476,7 +456,7 @@ const ChatLayout: React.FC<ChatLayoutProps> = () => {
       {/* Sidebar - slides in/out on mobile, always visible on md+ */}
       <div 
         ref={sidebarRef}
-        className={`fixed top-0 left-0 h-screen w-full md:w-64 transform transition-transform duration-300 ease-in-out z-40 ${
+        className={`fixed top-0 left-0 h-full w-full md:w-64 transform transition-transform duration-300 ease-in-out z-40 ${
           isSidebarOpen ? 'translate-x-0' : 'translate-x-[-100%] md:translate-x-0'
         }`}
       >
@@ -496,10 +476,10 @@ const ChatLayout: React.FC<ChatLayoutProps> = () => {
       </div>
 
       {/* Main content area: Added overflow-x-hidden and padding for desktop */}
-      <div className="flex-1 flex flex-col md:ml-64 overflow-x-hidden md:pr-4">
-        <main className="flex-1 flex flex-col overflow-hidden bg-gray-100 relative w-full">
+      <div className="flex-1 flex flex-col md:ml-64 overflow-x-hidden">
+        <main className="flex-1 flex flex-col overflow-hidden bg-gray-50 relative w-full">
           {/* Header: Adjusted padding and height */}
-          <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-2 md:px-6 py-2 bg-white/90 backdrop-blur-sm shadow-sm h-16">
+          <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-2 md:px-6 py-2 bg-white h-16">
             <div className="flex items-center space-x-2">
               <button
                 onClick={() => setIsSidebarOpen(!isSidebarOpen)}
