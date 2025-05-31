@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { ExternalLink, Loader2 } from 'lucide-react';
-import axios from 'axios'; // Ensure axios is installed
+import apiClient from '@/app/lib/apiClient'; // ADD THIS. Adjust path if needed.
 
 interface PurchaseCardProps {}
 
@@ -56,8 +56,8 @@ const PurchaseCard: React.FC<PurchaseCardProps> = () => {
       // BTCPay Flow
       console.log('Initiating BTCPay flow with amount (USD):', amountDollars);
       try {
-        const response = await axios.post<BtcPayInvoiceResponse>(
-          '/api/btcpay/create-invoice',
+        const response = await apiClient.post<BtcPayInvoiceResponse>(
+          '/btcpay/create-invoice',
           {
             amount: amountDollars, // Sending amount in dollars
             currency: 'USD',
@@ -90,8 +90,8 @@ const PurchaseCard: React.FC<PurchaseCardProps> = () => {
         return;
       }
       try {
-        const response = await axios.post<StripeSessionResponse>(
-          '/api/stripe/create-session',
+        const response = await apiClient.post<StripeSessionResponse>(
+          '/stripe/create-session',
           {
             amount_cents: amountCents,
             currency: 'usd',
@@ -126,8 +126,8 @@ const PurchaseCard: React.FC<PurchaseCardProps> = () => {
     setIsLoading(true);
     setError(null);
     try {
-        const response = await axios.get<StripeSessionResponse>('/api/stripe/billing-portal', {
-            headers: { Authorization: `Bearer ${authToken}` },
+        const response = await apiClient.get<StripeSessionResponse>('/stripe/billing-portal', {
+            // headers: { Authorization: `Bearer ${authToken}` }, // apiClient's interceptor handles Authorization header
         });
         if (response.data && response.data.url) {
             window.location.href = response.data.url;
