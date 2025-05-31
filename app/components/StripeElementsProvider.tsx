@@ -14,13 +14,13 @@ interface StripeElementsProviderProps {
 
 const StripeElementsProvider: React.FC<StripeElementsProviderProps> = ({ children }) => {
   // You can customize options for Elements here if needed
-  // const options: StripeElementsOptions = {
-  //   // example: clientSecret for a specific intent if you have it upfront
-  //   // appearance: { theme: 'stripe' },
-  // };
+  const options: StripeElementsOptions = {
+    locale: 'en',
+    // appearance: { theme: 'stripe' },
+  };
 
   return (
-    <Elements stripe={stripePromise} /* options={options} */>
+    <Elements stripe={stripePromise} options={options} >
       {children}
     </Elements>
   );

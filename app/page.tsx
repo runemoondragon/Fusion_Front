@@ -157,78 +157,9 @@ export default function Home() {
       </section>
       {/* === End New Section === */}
 
-      {/* Features Section (Adapted from Services) */}
-      <section className="py-20 bg-neutral-50">
-        <div className="container mx-auto max-w-6xl px-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {/* Feature 1 */}
-            <div className="p-8 bg-white border border-neutral-200 text-center">
-               <span className="text-4xl mb-4 inline-block">🚀</span>
-              <h3 className="font-mono text-[11px] tracking-wider mb-2">ENHANCED PRODUCTIVITY</h3>
-              <p className="font-light text-[13px] leading-relaxed">
-                Save time by reducing context switching.
-              </p>
-            </div>
-             {/* Feature 2 */}
-            <div className="p-8 bg-white border border-neutral-200 text-center">
-               <span className="text-4xl mb-4 inline-block">🎯</span>
-              <h3 className="font-mono text-[11px] tracking-wider mb-2">OPTIMIZED AI PERFORMANCE</h3>
-              <p className="font-light text-[13px] leading-relaxed">
-                Always use the most effective AI for each query.
-              </p>
-            </div>
-             {/* Feature 3 */}
-            <div className="p-8 bg-white border border-neutral-200 text-center">
-               <span className="text-4xl mb-4 inline-block">🤝</span>
-              <h3 className="font-mono text-[11px] tracking-wider mb-2">EFFORTLESS COLLABORATION</h3>
-              <p className="font-light text-[13px] leading-relaxed">
-                Integrate effortlessly with team workflows and projects.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Additional Tools Section */}
-      <section className="py-20 bg-white"> {/* Alternating background color */}
-        <div className="container mx-auto max-w-4xl px-4 text-center">
-           <h2 className="text-3xl font-light mb-4">More Than Just Chat</h2>
-           <p className="font-mono text-[13px] tracking-wider leading-relaxed max-w-2xl mx-auto mb-12">
-              Unlock powerful tools to enhance your productivity and creativity beyond simple conversation.
-           </p>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {/* Tool 1: PDF Analysis */}
-            <div className="p-8 bg-neutral-50 border border-neutral-200">
-               <span className="text-4xl mb-4 inline-block"></span>
-              <h3 className="font-mono text-[11px] tracking-wider mb-2">PDF ANALYSIS</h3>
-              <p className="font-light text-[13px] leading-relaxed">
-                Upload documents and ask questions, extract information, or get summaries in seconds.
-              </p>
-            </div>
-             {/* Tool 2: Image Generation */}
-            <div className="p-8 bg-neutral-50 border border-neutral-200">
-               <span className="text-4xl mb-4 inline-block"></span>
-              <h3 className="font-mono text-[11px] tracking-wider mb-2">IMAGE GENERATION</h3>
-              <p className="font-light text-[13px] leading-relaxed">
-                Bring your ideas to life by generating unique images from text descriptions.
-              </p>
-            </div>
-             {/* Tool 3: Writing Assistants */}
-            <div className="p-8 bg-neutral-50 border border-neutral-200">
-               <span className="text-4xl mb-4 inline-block"></span>
-              <h3 className="font-mono text-[11px] tracking-wider mb-2">WRITING ASSISTANTS</h3>
-              <p className="font-light text-[13px] leading-relaxed">
-                Improve your writing, generate drafts, summarize text, and overcome writer's block.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* === End Additional Tools Section === */}
-
+      
       {/* Adding a wrapper div for the background image */}
-      <div className="bg-[url('/content/images/graph-zinnia-a.png')] bg-no-repeat bg-cover bg-center">
+      <div className="py-20 bg-neutral-50">
         {/* Key Features Section */}
         <section className="py-20 bg-neutral-50 bg-opacity-90">
           <div className="container mx-auto max-w-6xl px-4">
@@ -239,21 +170,21 @@ export default function Home() {
               {/* Feature 1 */}
               <div className="p-8 bg-white border border-neutral-200 text-center">
                 <h3 className="font-mono text-[11px] tracking-wider mb-2">Unified Access</h3>
-                <p className="font-light text-[13px] leading-relaxed">
+                <p className="font-mono text-[13px] tracking-wider leading-relaxed max-w-xl mx-auto mb-12 text-neutral-600">
                   Access multiple AI models through a single interface, simplifying your workflow.
                 </p>
               </div>
               {/* Feature 2 */}
               <div className="p-8 bg-white border border-neutral-200 text-center">
                 <h3 className="font-mono text-[11px] tracking-wider mb-2">Seamless Switching</h3>
-                <p className="font-light text-[13px] leading-relaxed">
+                <p className="font-mono text-[13px] tracking-wider leading-relaxed max-w-xl mx-auto mb-12 text-neutral-600">
                   Switch between AI models effortlessly to leverage the best capabilities of each.
                 </p>
               </div>
               {/* Feature 3 */}
               <div className="p-8 bg-white border border-neutral-200 text-center">
                 <h3 className="font-mono text-[11px] tracking-wider mb-2">Intelligent Routing (NeuroSwitch™)</h3>
-                <p className="font-light text-[13px] leading-relaxed">
+                <p className="font-mono text-[13px] tracking-wider leading-relaxed max-w-xl mx-auto mb-12 text-neutral-600">
                   Automatically route queries to the most suitable AI model for optimal results.
                 </p>
               </div>
@@ -262,16 +193,16 @@ export default function Home() {
         </section>
 
         {/* Technical Notes Section */}
-        <section className="py-16 md:py-24 px-4 bg-neutral-50 bg-opacity-90">
+        <section className="py-20 bg-white">
           <div className="container mx-auto max-w-3xl text-center">
             <h2 className="text-2xl md:text-3xl font-light mb-6 text-neutral-800">
               A Peek <span className="font-normal text-orange-600">Under the Hood</span>
             </h2>
-            <p className="text-md font-light leading-relaxed text-neutral-700 mb-4">
-              Fusion AI is built with modern technologies to deliver a robust and privacy-conscious experience.
+            <p className="font-mono text-[13px] tracking-wider leading-relaxed max-w-xl mx-auto mb-12 text-neutral-600">
+            Fusion AI delivers AI-powered chat and automation tools using top-tier models like OpenAI, Claude, and Gemini. Our system ensures optimal cost and performance with detailed analytics, credit tracking, and enterprise-ready APIs.
             </p>
-            <p className="text-md font-light leading-relaxed text-neutral-700">
-              Our NeuroSwitch™ query classification happens <strong className="font-normal">locally on your device</strong> using a fine-tuned model based on <code className="font-mono text-sm bg-neutral-200 text-neutral-700 px-1.5 py-0.5 rounded">facebook/bart-large-mnli</code>. This means your prompts for routing are not sent to external servers for classification, ensuring privacy.
+            <p className="font-mono text-[13px] tracking-wider leading-relaxed max-w-xl mx-auto mb-12 text-neutral-600">
+              Our NeuroSwitch™ query classification happens <strong className="font-normal">locally</strong> using a fine-tuned model based on <code className="font-mono text-sm bg-neutral-200 text-neutral-700 px-1.5 py-0.5 rounded">smart zero-shot classifier/bart-large-mnli</code>. This means your prompts for routing are not sent to external servers for classification, ensuring privacy.
             </p>
             {/* <p className="text-sm font-light leading-relaxed text-neutral-600 mt-3">
               Primary Stack: Python (Flask/FastAPI backend), Next.js (React frontend).
@@ -332,12 +263,12 @@ export default function Home() {
             <p className="text-lg font-light mb-8 opacity-90">
               Multiple AI powerhouses. Endless possibilities. Connect your keys and start creating.
             </p>
-            <Link
-              href="/signup" // Link the button to the signup page
+            <button
+              onClick={() => openAuthModal('signup')} 
               className="inline-block bg-white text-black font-mono text-[12px] tracking-wider px-8 py-3 rounded hover:bg-neutral-200 transition-colors shadow-md"
             >
               GET STARTED NOW →
-            </Link>
+            </button>
           </div>
         </div>
       </section>
@@ -348,7 +279,7 @@ export default function Home() {
         <div className="container mx-auto max-w-6xl px-4">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="font-mono text-[11px] tracking-wider">
-              © 2024 Fusion AI
+              © 2025 Fusion AI
             </div>
             <div className="flex gap-8">
               <Link href="/privacy" className="font-mono text-[11px] tracking-wider hover:text-orange-500 transition-colors">
@@ -358,7 +289,7 @@ export default function Home() {
                 TERMS
               </Link>
               <Link 
-                href="https://calendly.com/ken-bti/discovery" 
+                href="#" 
                 className="font-mono text-[11px] tracking-wider hover:text-orange-500 transition-colors"
                 target="_blank"
                 rel="noopener noreferrer"
@@ -366,10 +297,10 @@ export default function Home() {
                 CONTACT
               </Link> 
               {/* Remove social links for now */}
-               <Link href="https://www.linkedin.com/company/bti" className="font-mono text-[11px] tracking-wider hover:text-orange-500 transition-colors">
+               <Link href="#" className="font-mono text-[11px] tracking-wider hover:text-orange-500 transition-colors">
                 LINKEDIN
               </Link>
-              <Link href="https://x.com/bti" className="font-mono text-[11px] tracking-wider hover:text-orange-500 transition-colors">
+              <Link href="#" className="font-mono text-[11px] tracking-wider hover:text-orange-500 transition-colors">
                 TWITTER
               </Link> 
             </div>
