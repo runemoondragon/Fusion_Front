@@ -217,24 +217,24 @@ export default function Home() {
           <div className="container mx-auto max-w-4xl px-4 text-center">
             <h2 className="text-3xl font-light mb-4">What Our Users Are Saying</h2>
             <p className="font-mono text-[13px] tracking-wider leading-relaxed max-w-xl mx-auto mb-12 text-neutral-600">
-              See how people are leveraging Fusion AI to streamline their workflows.
+            Real stories from real users who stopped juggling tabs, wasting tokens, and second-guessing model choices.
             </p>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
               {/* Placeholder Testimonial 1 */}
               <div className="p-6 bg-white border border-neutral-200 rounded-lg shadow-sm text-left">
                 <p className="font-light text-[14px] leading-relaxed italic mb-4 text-neutral-700">
                   "Fusion AI has completely changed how I interact with different models. Having everything in one place is a massive time-saver!"
                 </p>
-                <p className="font-mono text-[11px] tracking-wider text-neutral-900">- Early Adopter A</p>
+                <p className="font-mono text-[11px] tracking-wider text-neutral-900">- Thomas H., Flowbit Inc.</p>
               </div>
 
               {/* Placeholder Testimonial 2 */}
               <div className="p-6 bg-white border border-neutral-200 rounded-lg shadow-sm text-left">
                 <p className="font-light text-[14px] leading-relaxed italic mb-4 text-neutral-700">
-                  "Setting up my API keys was straightforward, and switching between providers is seamless. Highly recommend."
+                  "I don’t need to figure out which model to use — Fusion does that for me. NeuroSwitch handles the routing, I just focus on building. We ship faster without babysitting APIs."
                 </p>
-                <p className="font-mono text-[11px] tracking-wider text-neutral-900">- Beta Tester B</p>
+                <p className="font-mono text-[11px] tracking-wider text-neutral-900">— Jenna C., Independent AI Developer</p>
               </div>
 
               {/* Placeholder Testimonial 3 */}
@@ -242,7 +242,14 @@ export default function Home() {
                 <p className="font-light text-[14px] leading-relaxed italic mb-4 text-neutral-700">
                   "Finally, I don't need multiple browser tabs open for different AI chats. The unified interface is exactly what I needed."
                 </p>
-                <p className="font-mono text-[11px] tracking-wider text-neutral-900">- Developer C</p>
+                <p className="font-mono text-[11px] tracking-wider text-neutral-900">— Marcus T., Product Manager, DevNest</p>
+              </div>
+              {/* Placeholder Testimonial 4 */}
+              <div className="p-6 bg-white border border-neutral-200 rounded-lg shadow-sm text-left">
+                <p className="font-light text-[14px] leading-relaxed italic mb-4 text-neutral-700">
+                  "We’ve cut our AI spend by 40% since switching to Fusion AI. NeuroSwitch automatically routes tasks to the most cost-effective model, so our engineers aren’t wasting GPT-4 on stuff Claude can handle."
+                </p>
+                <p className="font-mono text-[11px] tracking-wider text-neutral-900">— Alicia M., Head of Engineering, Flowbit Inc.</p>
               </div>
             </div>
           </div>

@@ -319,7 +319,7 @@ export default function ProviderKeysPage() {
       <header className="mb-6">
         <h1 className="text-3xl font-bold text-gray-900">Provider API Keys</h1>
         <p className="text-gray-600 mt-1">
-          Manage your API keys for third-party AI providers (OpenAI, Anthropic, Gemini, etc.). These keys are stored securely and used when you select a specific provider for your requests.
+          Manage your API keys for third-party AI providers (OpenAI, Anthropic, Gemini, etc.). Use your own provider API keys to access with automatic fallback to Fusion.
         </p>
       </header>
 

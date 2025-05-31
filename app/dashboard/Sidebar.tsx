@@ -11,10 +11,10 @@ const navItems = [
   { name: 'Settings', path: '/dashboard/settings' },
   { name: 'Credits', path: '/dashboard/credits' },
   { name: 'API Keys', path: '/dashboard/api-keys' },
-  { name: 'Provider Keys', path: '/dashboard/provider-keys' },
-  { name: 'Provisioning Keys', path: '/dashboard/provisioning' },
-  { name: 'Integrations', path: '/dashboard/integrations' },
-  { name: 'Privacy', path: '/dashboard/privacy' },
+  { name: 'Integrations', path: '/dashboard/provider-keys' },
+  //{ name: 'Provisioning Keys', path: '/dashboard/provisioning' },
+  //{ name: 'Integrations', path: '/dashboard/integrations' },
+  //{ name: 'Privacy', path: '/dashboard/privacy' },
 ]
 
 interface SidebarProps {
