@@ -32,7 +32,7 @@
     "passport-linkedin-oauth2": "^2.0.0",
     "passport-microsoft": "^1.0.0",
     "pg": "^8.16.0",
-    "stripe": "^18.1.0"
+    "stripe": "^18.2.0"
   },
   "devDependencies": {
     "@types/bcrypt": "^5.0.2",
