@@ -35,30 +35,35 @@ export default function DashboardLayout({
   return (
     <ProtectedRoute>
       <div className="min-h-screen bg-gray-50">
-        <div className="fixed top-[64px] left-0 h-[calc(100%-64px)]" ref={sidebarRef}>
-          <Sidebar isOpen={isMobileSidebarOpen} onClose={() => setIsMobileSidebarOpen(false)} />
-        </div>
-
-        {isMobileSidebarOpen && (
-          <div 
-            className="fixed inset-0 bg-black/30 z-30 md:hidden"
-            onClick={() => setIsMobileSidebarOpen(false)}
-          ></div>
-        )}
-
         <div className="md:ml-64">
-          <header className="sticky top-0 z-20 bg-white/80 backdrop-blur-sm shadow-sm md:hidden p-3 border-b border-gray-200">
-            <button 
-              ref={hamburgerRef}
-              onClick={() => setIsMobileSidebarOpen(true)}
-              className="p-2 rounded-md text-gray-700 hover:bg-gray-100"
-              aria-label="Open sidebar"
-            >
-              <Menu size={24} />
-            </button>
-          </header>
+        <header className="fixed left-0 right-0 z-30  backdrop-blur-sm shadow-sm md:hidden p-3 border-b border-gray-200 top-[64px]">
+  <button 
+    ref={hamburgerRef}
+    onClick={() => setIsMobileSidebarOpen(true)}
+    className="p-2 rounded-md text-gray-700 hover:bg-gray-100"
+    aria-label="Open sidebar"
+  >
+    <Menu size={24} />
+  </button>
+</header>
 
-          <main className="p-4 md:p-6 lg:p-8">
+          <div 
+            ref={sidebarRef}
+            className={`fixed left-0  md:w-64 bg-white transform transition-transform duration-300 ease-in-out z-40 top-[56px] h-[calc(100vh-56px)] ${
+              isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+            }`}
+          >
+            <Sidebar isOpen={isMobileSidebarOpen} onClose={() => setIsMobileSidebarOpen(false)} />
+          </div>
+
+          {isMobileSidebarOpen && (
+            <div 
+              className="fixed inset-x-0 bg-black/30 z-30 md:hidden top-[56px] h-[calc(100vh-56px)]"
+              onClick={() => setIsMobileSidebarOpen(false)}
+            ></div>
+          )}
+
+          <main className="pt-[56px] md:pt-0 p-4 md:p-6 lg:p-8">
             {children}
           </main>
         </div>
