@@ -81,13 +81,13 @@ const ModelsSidebar: React.FC<ModelsSidebarProps> = ({ filters, onFiltersChange 
   };
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow-lg h-full overflow-y-auto max-h-[90vh]">
-      <h2 className="text-xl font-semibold text-gray-800 mb-5 pb-3 border-b border-gray-200">
+    <div className="bg-white p-4 sm:p-6 rounded-lg shadow-lg h-full overflow-y-auto max-h-[90vh]">
+      <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-4 sm:mb-5 pb-3 border-b border-gray-200">
         Filters
       </h2>
 
       {/* Show Active Only Toggle */}
-      <div className="mb-6 pb-4 border-b border-gray-100">
+      <div className="mb-5 sm:mb-6 pb-3 sm:pb-4 border-b border-gray-100">
         <div className="flex items-center justify-between">
           <span className="text-sm font-medium text-gray-900">Show only available models</span>
           <Switch
@@ -110,9 +110,9 @@ const ModelsSidebar: React.FC<ModelsSidebarProps> = ({ filters, onFiltersChange 
       </div>
 
       {/* Context Length Slider */}
-      <div className="mb-8">
+      <div className="mb-6 sm:mb-8">
         <div className="flex items-center justify-between mb-2">
-          <span className="font-medium">Context length</span>
+          <span className="font-medium text-sm sm:text-base">Context length</span>
         </div>
         <input
           type="range"
@@ -137,9 +137,9 @@ const ModelsSidebar: React.FC<ModelsSidebarProps> = ({ filters, onFiltersChange 
       </div>
 
       {/* Prompt Pricing Slider */}
-      <div className="mb-8">
+      <div className="mb-6 sm:mb-8">
         <div className="flex items-center justify-between mb-2">
-          <span className="font-medium">Prompt pricing</span>
+          <span className="font-medium text-sm sm:text-base">Prompt pricing</span>
         </div>
         <input
           type="range"
@@ -162,15 +162,15 @@ const ModelsSidebar: React.FC<ModelsSidebarProps> = ({ filters, onFiltersChange 
         </div>
       </div>
 
-      <div className="space-y-6">
+      <div className="space-y-5 sm:space-y-6">
         {filterGroups.map((group) => (
           <div key={group.name}>
-            <h3 className="text-sm font-medium text-gray-600 uppercase tracking-wider mb-3">
+            <h3 className="text-xs sm:text-sm font-medium text-gray-600 uppercase tracking-wider mb-2 sm:mb-3">
               {group.name}
             </h3>
-            <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
+            <div className="space-y-1.5 sm:space-y-2 max-h-40 overflow-y-auto pr-2">
               {group.options.map((option) => (
-                <label key={option} className="flex items-center text-gray-700 hover:text-indigo-600 cursor-pointer">
+                <label key={option} className="flex items-center text-sm text-gray-700 hover:text-indigo-600 cursor-pointer py-1">
                   <input
                     type="checkbox"
                     checked={((filters[group.category] as string[] | undefined) ?? []).includes(option)}
@@ -186,7 +186,7 @@ const ModelsSidebar: React.FC<ModelsSidebarProps> = ({ filters, onFiltersChange 
       </div>
       <button
         onClick={handleClearFilters}
-        className="mt-6 w-full text-sm text-indigo-600 hover:text-indigo-800 border border-indigo-200 rounded py-2"
+        className="mt-5 sm:mt-6 w-full text-sm text-indigo-600 hover:text-indigo-800 border border-indigo-200 rounded py-2.5"
       >
         Clear all filters
       </button>
