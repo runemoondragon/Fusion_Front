@@ -516,16 +516,16 @@ const ChatLayout: React.FC<ChatLayoutProps> = () => {
                 <div className="relative">
                   <button
                     onClick={() => setIsModelDropdownOpen(!isModelDropdownOpen)}
-                    className="flex items-center justify-between w-auto min-w-[120px] sm:min-w-[150px] text-sm py-2 px-3 border border-gray-300 rounded-md shadow-sm bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 h-10 min-h-10"
+                    className="flex items-center justify-between w-auto min-w-[140px] sm:min-w-[150px] text-[13px] sm:text-sm py-2 px-3 border border-gray-300 rounded-md shadow-sm bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 h-10 min-h-10"
                   >
                     <span className="truncate">{getSelectedModelDisplayName()}</span>
                     <ChevronDown className={`ml-1 sm:ml-2 h-4 w-4 text-gray-500 transition-transform ${isModelDropdownOpen ? 'rotate-180' : ''}`} />
                   </button>
                   {isModelDropdownOpen && (
-                    <div className="absolute left-0 mt-1 w-full max-w-xs sm:w-72 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none py-1 z-30">
+                    <div className="absolute left-0 mt-1 w-[200px] sm:w-72 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none py-1 z-30">
                       <button
                         onClick={() => handleModelSelect('neuroswitch')}
-                        className={`w-full text-left px-3 py-2.5 text-base flex items-center h-10 min-h-10 ${selectedModel === 'neuroswitch' ? 'bg-orange-100 text-orange-700' : 'text-gray-700 hover:bg-gray-100'}`}
+                        className={`w-full text-left px-3 py-2.5 text-[13px] sm:text-base flex items-center h-10 min-h-10 ${selectedModel === 'neuroswitch' ? 'bg-orange-100 text-orange-700' : 'text-gray-700 hover:bg-gray-100'}`}
                       >
                         NeuroSwitch
                       </button>
@@ -540,7 +540,7 @@ const ChatLayout: React.FC<ChatLayoutProps> = () => {
                           <div key={providerKey}>
                             <button
                               onClick={() => toggleProviderSubmenu(providerKey)}
-                              className="w-full text-left px-3 py-2.5 text-base font-medium text-gray-800 hover:bg-gray-100 flex justify-between items-center h-10 min-h-10"
+                              className="w-full text-left px-3 py-2.5 text-[13px] sm:text-base font-medium text-gray-800 hover:bg-gray-100 flex justify-between items-center h-10 min-h-10"
                             >
                               <span>{providerName}</span>
                               <ChevronRight className={`h-4 w-4 text-gray-500 transition-transform ${expandedProvider === providerKey ? 'rotate-90' : ''}`} />
@@ -549,7 +549,7 @@ const ChatLayout: React.FC<ChatLayoutProps> = () => {
                               <div className="pl-3 border-l-2 border-gray-200 ml-1">
                                 <button
                                   onClick={() => handleModelSelect(providerKey)}
-                                  className={`w-full text-left px-3 py-2.5 text-base flex items-center h-10 min-h-10 ${selectedModel === providerKey ? 'bg-orange-100 text-orange-600' : 'text-gray-600 hover:bg-gray-50'}`}
+                                  className={`w-full text-left px-3 py-2.5 text-[13px] sm:text-base flex items-center h-10 min-h-10 ${selectedModel === providerKey ? 'bg-orange-100 text-orange-600' : 'text-gray-600 hover:bg-gray-50'}`}
                                 >
                                   {providerName} (Default)
                                 </button>
@@ -557,7 +557,7 @@ const ChatLayout: React.FC<ChatLayoutProps> = () => {
                                   <button
                                     key={model.id}
                                     onClick={() => handleModelSelect(model.id)}
-                                    className={`w-full text-left px-3 py-2.5 text-base flex items-center h-10 min-h-10 ${selectedModel === model.id ? 'bg-orange-100 text-orange-600' : 'text-gray-600 hover:bg-gray-50'}`}
+                                    className={`w-full text-left px-3 py-2.5 text-[13px] sm:text-base flex items-center h-10 min-h-10 ${selectedModel === model.id ? 'bg-orange-100 text-orange-600' : 'text-gray-600 hover:bg-gray-50'}`}
                                   >
                                     {model.name}
                                   </button>
