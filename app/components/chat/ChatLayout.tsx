@@ -6,9 +6,10 @@ import apiClient from '../../lib/apiClient'; // Import apiClient
 import { usePathname, useRouter } from 'next/navigation'
 import ChatSidebar from './ChatSidebar'
 import ChatWindow from './ChatWindow'
-import { UserCircle, Settings2, LogOut, User as UserIcon, ChevronDown, ChevronRight, Menu, X } from 'lucide-react'
+import { UserCircle, Settings2, LogOut, User as UserIcon, ChevronDown, ChevronRight, Menu, X, Link as LinkIcon, Settings, Activity, KeyRound, CreditCard, Search } from 'lucide-react'
 import { useUser } from '../../contexts/UserContext'
 import AuthModal from '../auth/AuthModal'
+import NextLink from 'next/link'; // Import next/link as NextLink or ensure direct import exists
 
 // Define the structure of a chat session based on your API response
 interface ChatSession {
@@ -584,6 +585,7 @@ const ChatLayout: React.FC<ChatLayoutProps> = () => {
             </div>
             
             <div className="flex items-center">
+            <span className="sr-only">Open user menu</span>
               {authStatus ? (
                 <div ref={dropdownRef} className="relative">
                   <button
@@ -593,12 +595,27 @@ const ChatLayout: React.FC<ChatLayoutProps> = () => {
                     {renderAvatar()} 
                   </button>
                   {isDropdownOpen && (
-                    <div className="origin-top-right absolute right-0 mt-2 w-56 sm:w-64 max-w-[90vw] rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-50">
-                      <button
-                        onClick={handleLogout}
-                        className="w-full text-left flex items-center px-4 py-3 text-base text-red-600 hover:bg-neutral-100 h-10 min-h-10"
-                      >
-                        <LogOut className="mr-2 h-5 w-5"/> Sign out
+                  <div className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-50">
+                    <NextLink href="/chat" onClick={() => setIsDropdownOpen(false)} className="flex items-center px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-100">
+                      <Search className="mr-2 h-4 w-4 text-neutral-500"/> Chat
+                    </NextLink>
+                    <NextLink href="/dashboard/credits" onClick={() => setIsDropdownOpen(false)} className="flex items-center px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-100">
+                      <CreditCard className="mr-2 h-4 w-4 text-neutral-500"/> Credits
+                    </NextLink>
+                    <NextLink href="/dashboard/provider-keys" onClick={() => setIsDropdownOpen(false)} className="flex items-center px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-100">
+                       <KeyRound className="mr-2 h-4 w-4 text-neutral-500"/> Add Keys
+                    </NextLink>
+                    <NextLink href="/dashboard/activity" onClick={() => setIsDropdownOpen(false)} className="flex items-center px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-100">
+                        <Activity className="mr-2 h-4 w-4 text-neutral-500"/> Activity
+                    </NextLink>
+                    <NextLink href="/dashboard/settings" onClick={() => setIsDropdownOpen(false)} className="flex items-center px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-100">
+                       <Settings className="mr-2 h-4 w-4 text-neutral-500"/> Settings
+                    </NextLink>
+                    <button
+                      onClick={handleLogout}
+                      className="w-full text-left flex items-center px-4 py-2 text-sm text-red-600 hover:bg-neutral-100"
+                    >
+                       <LogOut className="mr-2 h-4 w-4"/> Log out
                       </button>
                     </div>
                   )}
