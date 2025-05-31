@@ -95,7 +95,7 @@ export default function Navigation() {
             Fusion AI
           </Link>
         </div>
-
+{/*
         {authStatus && (
           <div className="flex-1 flex justify-center max-w-md mx-4">
              <div className="relative w-full">
@@ -109,7 +109,7 @@ export default function Navigation() {
                />
              </div>
           </div>
-        )}
+)}*/}
         {!authStatus && <div className="flex-1"></div>} 
 
         <div className="flex items-center">
