@@ -1,10 +1,12 @@
 import axios from 'axios';
 
 // Use NEXT_PUBLIC_API_BASE_URL for API calls typically under /api
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000/api'; // Fallback for local dev also points to /api
+const API_BASE_URL = process.env.NODE_ENV === 'production' 
+  ? 'https://api.mcp4.ai/api'  // Production URL
+  : 'http://localhost:5000/api'; // Local development
 
 const apiClient = axios.create({
-  baseURL: API_BASE_URL, // This will be https://api.mcp4.ai/api in production
+  baseURL: API_BASE_URL,
 });
 
 // Optional: Add an interceptor to include the auth token in requests
