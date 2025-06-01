@@ -252,11 +252,40 @@ router.post('/', verifyToken, async (req: Request, res: Response) => {
     return res.status(400).json({ error: 'Prompt missing' });
   }
 
+  interface HistoryMessage {
+    role: 'user' | 'assistant';
+    content: string;
+  }
+
+  const isProd = process.env.NODE_ENV === 'production';
+
+  let dbHistory: HistoryMessage[] = [];
+
+if (isProd && chatIdFromHeader) {
+    try {
+      const historyResult = await pool.query(
+      `
+      SELECT m.role, m.content
+      FROM messages m
+      INNER JOIN chats c ON m.chat_id = c.id
+      WHERE m.chat_id = $1 AND c.user_id = $2
+      ORDER BY m.timestamp ASC`,
+        [parseInt(chatIdFromHeader, 10), userId]
+      );
+      dbHistory = historyResult.rows.map(msg => ({ role: msg.role as ('user' | 'assistant'), content: msg.content }));
+    } catch (dbError: any) {
+      console.error(`[API Chat] Error fetching history from DB for chat_id ${chatIdFromHeader}, user_id ${userId}. Proceeding with empty history. Error: ${dbError.message}`);
+      // Proceed with empty history if DB fetch fails
+      dbHistory = [];
+    }
+  }
+
   try {
-    const neuroSwitchUrl = process.env.NEUROSWITCH_API_URL || 'http://localhost:5001/chat';
+    const neuroSwitchUrl = process.env.NEUROSWITCH_API_URL || 'http://localhost:5001/chat'; // Default local NeuroSwitch
     
     const payloadToNeuroSwitch: any = {
       message: prompt,
+      history: dbHistory,
       return_token_usage: true,
       return_response_time: true,
       user_context: { user_id: userId },
