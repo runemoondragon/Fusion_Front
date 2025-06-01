@@ -784,7 +784,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         <div
           className={`mx-auto w-full max-w-3xl px-2 ${
             !hasMessages
-              ? 'flex flex-col items-center justify-start text-center min-h-[60vh] mt-48'
+              ? 'flex flex-col items-center justify-start text-center min-h-[60vh] mt-40'
               : 'pb-4'
           }`}
         >
