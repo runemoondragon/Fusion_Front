@@ -261,7 +261,7 @@ router.post('/', verifyToken, async (req: Request, res: Response) => {
 
   let dbHistory: HistoryMessage[] = [];
 
-if (isProd && chatIdFromHeader) {
+if (chatIdFromHeader) { // Removed isProd condition
     try {
       const historyResult = await pool.query(
       `
