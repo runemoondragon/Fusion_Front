@@ -895,12 +895,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
               By messaging, you agree to our <a href="/terms" className="underline hover:text-blue-600" target="_blank" rel="noopener noreferrer">Terms</a> and have read our <a href="/privacy" className="underline hover:text-blue-600" target="_blank" rel="noopener noreferrer">Privacy Policy</a>.
             </p>
           )}
-          
-          {hasMessages && (
-            <p className="text-xs text-gray-500 pt-1 md:pt-2 text-center px-2">
-              AI can make mistakes. Check important info.
-            </p>
-          )}
         </div>
       </div>
     </div>
