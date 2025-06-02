@@ -619,7 +619,6 @@ const ChatLayout: React.FC<ChatLayoutProps> = () => {
             neuroStatus={neuroStatus}
             setNeuroStatus={setNeuroStatus}
             allModels={allModels}
-            isManualScrolling={isManualScrolling}
             promptForLogin={openLoginModal}
           />
         </main>
