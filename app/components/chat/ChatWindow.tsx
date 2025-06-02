@@ -94,7 +94,7 @@ interface ChatWindowProps {
   setSelectedModel: React.Dispatch<React.SetStateAction<string>>;
   neuroStatus: 'green' | 'orange' | '';
   setNeuroStatus: React.Dispatch<React.SetStateAction<'green' | 'orange' | ''>>;
-  isManualScrolling?: boolean; // Added to prevent auto-scroll when user is manually scrolling
+  // isManualScrolling?: boolean; // Removed, will be handled internally by isScrolledUp
   promptForLogin: () => void; // Add promptForLogin prop
   // We might also need onMessageSaved or similar to trigger chat list refresh in layout
 }
@@ -129,7 +129,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   setSelectedModel, 
   neuroStatus, 
   setNeuroStatus,
-  isManualScrolling = false, // Default to false if not provided
+  // isManualScrolling = false, // Removed
   promptForLogin // Destructure promptForLogin
 }) => {
   const { user } = useUser(); // Get user from context
@@ -146,10 +146,35 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const chatContainerRef = useRef<HTMLDivElement | null>(null); // Ref for the scrollable message container
+  const inputAreaRef = useRef<HTMLDivElement | null>(null); // Ref for the input area
 
   const [isLoadingMessages, setIsLoadingMessages] = useState(false); // New state for loading existing chat
+  const [isMobileView, setIsMobileView] = useState(false);
+  const [isScrolledUp, setIsScrolledUp] = useState(false);
+  const [inputAreaHeight, setInputAreaHeight] = useState(0);
+  const [isTextareaFocused, setIsTextareaFocused] = useState(false);
 
   const hasMessages = messages.length > 0; // DETECT IF THERE ARE MESSAGES
+
+  // Effect to detect mobile view
+  useEffect(() => {
+    const checkMobileView = () => {
+      setIsMobileView(window.innerWidth < 768); // md breakpoint
+    };
+    checkMobileView();
+    window.addEventListener('resize', checkMobileView);
+    return () => window.removeEventListener('resize', checkMobileView);
+  }, []);
+
+  // Effect to measure input area height for padding
+  useEffect(() => {
+    if (isMobileView && inputAreaRef.current) {
+      setInputAreaHeight(inputAreaRef.current.offsetHeight);
+    } else {
+      setInputAreaHeight(0); // No padding needed if not mobile or ref not available
+    }
+  }, [isMobileView, input, imagePreview, currentMode, loading]); // Re-calculate if things in input area change height
 
   // Effect to handle activeChatId changes (new chat, loading existing chat)
   useEffect(() => {
@@ -210,11 +235,13 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       setTokensUsed(0);
       setLoading(false); 
       setIsLoadingMessages(false); // Ensure this is also false
+      setIsScrolledUp(false); // Reset scroll state
       console.log('ChatWindow: New chat mode activated, state reset.');
       if (textareaRef.current) textareaRef.current.focus(); // Focus for new chat
     } else {
       // Existing chat mode: fetch messages for activeChatId
       loadChatMessages(activeChatId);
+      setIsScrolledUp(false); // Reset scroll state when loading new chat
     }
   }, [activeChatId, setSelectedModel, setNeuroStatus]); // Added dependencies from lifted state
 
@@ -507,6 +534,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         promptForLogin();
         return;
       }
+      // Ensure textarea blur on mobile after send to help keyboard hide
+      if (isMobileView && textareaRef.current) {
+        textareaRef.current.blur();
+      }
       if (!loading && (input.trim() || imageData)) {
         handleSend(); 
       }
@@ -517,6 +548,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         promptForLogin();
         return;
       }
+      // Ensure textarea blur on mobile after send to help keyboard hide
+      if (isMobileView && textareaRef.current) {
+        textareaRef.current.blur();
+      }
       if (!loading && (input.trim() || imageData)) {
         handleSend();
       }
@@ -524,21 +559,42 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   };
 
   // Add scrollToBottom function
-  const scrollToBottom = () => {
+  const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
     if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+      messagesEndRef.current.scrollIntoView({ behavior });
     }
   };
 
-  // Add effect for auto-scrolling
+  // Effect for auto-scrolling and managing isScrolledUp state
   useEffect(() => {
-    const lastMessage = messages[messages.length - 1];
-    const isNewMessage = lastMessage && (lastMessage.isLoading || !lastMessage.id);
-    
-    if (messages.length > 0 && (isNewMessage || !isManualScrolling)) {
-      scrollToBottom();
+    const container = chatContainerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      // Check if scrolled to the very bottom
+      const isAtBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 1; // +1 for leniency
+      if (isAtBottom) {
+        setIsScrolledUp(false);
+      } else {
+        setIsScrolledUp(true);
+      }
+    };
+
+    container.addEventListener('scroll', handleScroll);
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Add effect for auto-scrolling when new messages arrive
+  useEffect(() => {
+    // Auto-scroll only if not manually scrolled up OR if it's the initial load of messages
+    // And ensure messages.length > 0 to avoid scrolling on empty/reset chat
+    if (messages.length > 0 && !isScrolledUp) {
+      // For the very first batch of messages (e.g., loading an existing chat),
+      // scroll instantly. For new messages during an active chat, scroll smoothly.
+      const initialLoad = messages.every(msg => msg.id && !msg.isLoading); // Approximation of initial load
+      scrollToBottom(initialLoad && messages.length > 1 ? 'auto' : 'smooth');
     }
-  }, [messages]); // Only depend on messages, not isManualScrolling
+  }, [messages, isScrolledUp]); // React to messages change and isScrolledUp state
 
   const renderMessages = () => (
     messages.map((msg, index) => {
@@ -780,7 +836,11 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   
   return (
     <div className="flex flex-col h-full w-full relative font-sans px-0 md:px-0">
-      <div className="flex-1 overflow-y-auto pt-16 chat-messages-container flex flex-col">
+      <div 
+        ref={chatContainerRef}
+        className="flex-1 overflow-y-auto pt-16 chat-messages-container flex flex-col"
+        style={isMobileView && isTextareaFocused ? { paddingBottom: `${inputAreaHeight + 16}px` } : { paddingBottom: '0px' } } // Dynamic padding for fixed input
+      >
         <div
           className={`mx-auto w-full max-w-3xl px-2 ${
             !hasMessages
@@ -814,7 +874,17 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                     </button>
                     <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*" />
-                    <textarea ref={textareaRef} value={input} onChange={handleTextareaChange} onKeyDown={handleKeyDown} rows={1} className="flex-1 border-0 bg-transparent p-2 focus:ring-0 focus:outline-none resize-none max-h-32 overflow-y-auto min-h-[2.5rem] text-base w-full textarea-placeholder-sm" placeholder="Ask a question..." style={{ height: '40px' }} />
+                    <textarea 
+                        ref={textareaRef} 
+                        value={input} 
+                        onChange={handleTextareaChange} 
+                        onKeyDown={handleKeyDown} 
+                        onFocus={() => setIsTextareaFocused(true)}
+                        onBlur={() => setIsTextareaFocused(false)}
+                        rows={1} 
+                        className="flex-1 border-0 bg-transparent p-2 focus:ring-0 focus:outline-none resize-none max-h-32 overflow-y-auto min-h-[2.5rem] text-base w-full textarea-placeholder-sm" placeholder="Ask a question..." 
+                        style={{ height: '40px' }} 
+                    />
                     <button type="submit" disabled={loading || (!input.trim() && !imageData)} className={`p-2.5 text-blue-600 hover:text-blue-700 h-10 w-10 flex items-center justify-center min-w-10 min-h-10 ${loading || (!input.trim() && !imageData) ? 'opacity-50 cursor-not-allowed' : ''}`} title="Send Message">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" /></svg>
                     </button>
@@ -842,9 +912,15 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         </div>
 
         {hasMessages && (
-          <div className="input-wrapper mt-auto pt-4 w-full bg-transparent z-10">
+          <div 
+            ref={inputAreaRef}
+            className={`input-wrapper mt-auto pt-4 w-full bg-transparent z-10 
+                        ${isMobileView && isTextareaFocused ? 'fixed bottom-0 left-0 right-0 bg-white dark:bg-neutral-800 border-t border-gray-200 dark:border-neutral-700 shadow-top' : ''}
+                        ${isMobileView && !isTextareaFocused ? 'pb-4' : ''} // Add padding at bottom when not focused on mobile to see last msg
+                      `}
+          >
             <div className="max-w-5xl mx-auto px-2 md:px-3 w-full">
-              <form onSubmit={handleSend} className="relative w-full bg-white rounded-lg border border-gray-200 p-2 shadow-md">
+              <form onSubmit={handleSend} className={`relative w-full bg-white rounded-lg border border-gray-200 p-2 shadow-md ${isMobileView && isTextareaFocused ? 'rounded-none border-0 shadow-none' : ''}`}>
                 {imagePreview && (
                   <div className="mb-1">
                     <div className="relative inline-block">
@@ -864,7 +940,18 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                   </button>
                   <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*" />
-                  <textarea ref={textareaRef} value={input} onChange={handleTextareaChange} onKeyDown={handleKeyDown} rows={1} className="flex-1 border-0 bg-transparent p-2 focus:ring-0 focus:outline-none resize-none max-h-32 overflow-y-auto min-h-[2.5rem] text-base w-full textarea-placeholder-sm" placeholder="Enter to send, Shift+Enter for new line" style={{ height: '50px' }} />
+                  <textarea 
+                    ref={textareaRef} 
+                    value={input} 
+                    onChange={handleTextareaChange} 
+                    onKeyDown={handleKeyDown} 
+                    onFocus={() => setIsTextareaFocused(true)}
+                    onBlur={() => setIsTextareaFocused(false)}
+                    rows={1} 
+                    className="flex-1 border-0 bg-transparent p-2 focus:ring-0 focus:outline-none resize-none max-h-32 overflow-y-auto min-h-[2.5rem] text-base w-full textarea-placeholder-sm" 
+                    placeholder="Enter to send, Shift+Enter for new line" 
+                    style={{ height: '50px' }} 
+                  />
                   <button type="submit" disabled={loading || (!input.trim() && !imageData)} className={`p-2.5 text-blue-600 hover:text-blue-700 h-10 w-10 flex items-center justify-center min-w-10 min-h-10 ${loading || (!input.trim() && !imageData) ? 'opacity-50 cursor-not-allowed' : ''}`} title="Send Message">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" /></svg>
                   </button>
