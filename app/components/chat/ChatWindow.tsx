@@ -167,38 +167,74 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     return () => window.removeEventListener('resize', checkMobileView);
   }, []);
 
-  // Effect to measure input area height for padding
+  // Effect to measure input area height
   useEffect(() => {
-    if (isMobileView && inputAreaRef.current) {
+    if (inputAreaRef.current) { // Measure always if ref is available, specific padding logic is conditional elsewhere
       setInputAreaHeight(inputAreaRef.current.offsetHeight);
     } else {
-      setInputAreaHeight(0); // No padding needed if not mobile or ref not available
+      setInputAreaHeight(0);
     }
   }, [isMobileView, input, imagePreview, currentMode, loading, messages.length]); // Re-calculate if things in input area change height or if input bar appears
 
-  // Effect to scroll input area into view on mobile when keyboard appears
+  // NEW: Effect for visualViewport API to adjust layout for on-screen keyboard on mobile
   useEffect(() => {
-    const container = chatContainerRef.current;
+    const inputDiv = inputAreaRef.current;
+    const messagesDiv = chatContainerRef.current;
 
-    if (isMobileView && isTextareaFocused && container) {
-      const adjustScrollForKeyboard = () => {
-        if (container) { // Ensure container is still valid
-          container.scrollTo({ top: container.scrollHeight, behavior: 'auto' });
-        }
-      };
-
-      // Initial scroll attempt after a delay for keyboard animation and layout settlement
-      const initialScrollTimer = setTimeout(adjustScrollForKeyboard, 350);
-
-      // Add resize listener to re-adjust scroll if viewport changes (e.g., keyboard fully up/down)
-      window.addEventListener('resize', adjustScrollForKeyboard);
-
-      return () => {
-        clearTimeout(initialScrollTimer);
-        window.removeEventListener('resize', adjustScrollForKeyboard);
-      };
+    if (!isMobileView || !window.visualViewport || !inputDiv || !messagesDiv) {
+      // If not mobile, or API not supported, or refs not ready, clear any explicit styles and do nothing further
+      if (inputDiv) inputDiv.style.bottom = '0px'; // Ensure it's at the actual bottom if visualViewport logic isn't running
+      if (messagesDiv && isMobileView) {
+         // Fallback padding if visualViewport is not used but it's mobile
+         messagesDiv.style.paddingBottom = `${inputAreaHeight + 16}px`; 
+      } else if (messagesDiv) {
+         messagesDiv.style.paddingBottom = '0px'; // Desktop default
+      }
+      return;
     }
-  }, [isMobileView, isTextareaFocused, inputAreaHeight, chatContainerRef]); // Dependencies ensure this re-runs if these key states/refs change
+
+    const vv = window.visualViewport;
+
+    const adjustLayoutForKeyboard = () => {
+      if (!inputDiv || !messagesDiv) return; // Check refs again inside handler
+
+      const keyboardOffset = window.innerHeight - vv.height;
+      inputDiv.style.bottom = `${keyboardOffset}px`;
+
+      // Padding for messagesDiv: height of input bar + keyboard offset + base padding
+      // No, padding for messagesDiv should just be height of input bar + base padding.
+      // The keyboardOffset is handled by the inputDiv's `bottom` style.
+      messagesDiv.style.paddingBottom = `${inputAreaHeight + 16}px`;
+      
+      // Optional: Scroll to keep the very last message visible if keyboard pushes content up
+      // This might be redundant if the focus scroll works well, but can be a fallback.
+      // messagesDiv.scrollTo({ top: messagesDiv.scrollHeight, behavior: 'auto' });
+    };
+
+    vv.addEventListener('resize', adjustLayoutForKeyboard);
+    // vv.addEventListener('scroll', adjustLayoutForKeyboard); // Usually resize is enough
+    adjustLayoutForKeyboard(); // Initial call
+
+    return () => {
+      vv.removeEventListener('resize', adjustLayoutForKeyboard);
+      // vv.removeEventListener('scroll', adjustLayoutForKeyboard);
+      // Reset styles when effect cleans up (e.g., switching from mobile to desktop view)
+      if (inputDiv) inputDiv.style.bottom = '0px';
+      if (messagesDiv) messagesDiv.style.paddingBottom = isMobileView ? `${inputAreaHeight + 16}px` : '0px';
+    };
+  // Dependencies: isMobileView to enable/disable, inputAreaHeight because it affects padding logic,
+  // and refs themselves to ensure they are bound.
+  }, [isMobileView, inputAreaHeight, inputAreaRef, chatContainerRef]);
+
+  // NEW: Effect to scroll textarea into view when focused on mobile
+  useEffect(() => {
+    if (isMobileView && isTextareaFocused && textareaRef.current) {
+      const timer = setTimeout(() => {
+        textareaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }, 150); // Short delay after focus to allow other layout adjustments
+      return () => clearTimeout(timer);
+    }
+  }, [isMobileView, isTextareaFocused, textareaRef]); // Dependency on textareaRef to ensure it's available
 
   // Effect to handle activeChatId changes (new chat, loading existing chat)
   useEffect(() => {
@@ -863,7 +899,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       <div 
         ref={chatContainerRef}
         className="flex-1 overflow-y-auto pt-16 chat-messages-container flex flex-col"
-        style={isMobileView ? { paddingBottom: `${inputAreaHeight + 16}px` } : { paddingBottom: '0px' } } // Changed condition here
+        style={!isMobileView ? { paddingBottom: '0px' } : { /* Managed by JS on mobile */ }}
       >
         <div
           className={`mx-auto w-full max-w-3xl px-2 ${
@@ -941,7 +977,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             className="input-wrapper"
             style={isMobileView ? {
               position: 'fixed',
-              bottom: 0,
               left: 0,
               right: 0,
               backgroundColor: 'transparent',
