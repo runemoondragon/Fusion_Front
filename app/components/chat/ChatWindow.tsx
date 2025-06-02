@@ -174,7 +174,31 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     } else {
       setInputAreaHeight(0); // No padding needed if not mobile or ref not available
     }
-  }, [isMobileView, input, imagePreview, currentMode, loading]); // Re-calculate if things in input area change height
+  }, [isMobileView, input, imagePreview, currentMode, loading, messages.length]); // Re-calculate if things in input area change height or if input bar appears
+
+  // Effect to scroll input area into view on mobile when keyboard appears
+  useEffect(() => {
+    const container = chatContainerRef.current;
+
+    if (isMobileView && isTextareaFocused && container) {
+      const adjustScrollForKeyboard = () => {
+        if (container) { // Ensure container is still valid
+          container.scrollTo({ top: container.scrollHeight, behavior: 'auto' });
+        }
+      };
+
+      // Initial scroll attempt after a delay for keyboard animation and layout settlement
+      const initialScrollTimer = setTimeout(adjustScrollForKeyboard, 350);
+
+      // Add resize listener to re-adjust scroll if viewport changes (e.g., keyboard fully up/down)
+      window.addEventListener('resize', adjustScrollForKeyboard);
+
+      return () => {
+        clearTimeout(initialScrollTimer);
+        window.removeEventListener('resize', adjustScrollForKeyboard);
+      };
+    }
+  }, [isMobileView, isTextareaFocused, inputAreaHeight, chatContainerRef]); // Dependencies ensure this re-runs if these key states/refs change
 
   // Effect to handle activeChatId changes (new chat, loading existing chat)
   useEffect(() => {
@@ -983,7 +1007,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                 </div>
               </form>
               <p className="text-xs text-gray-500 pt-2 text-center">
-              All can make mistakes. Check important info.
+              AI can make mistakes. Check important info.
               </p>
 
             </div>
