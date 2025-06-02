@@ -444,7 +444,7 @@ const ChatLayout: React.FC<ChatLayoutProps> = () => {
 
   return (
     <>
-    <div className="flex h-full w-full bg-neutral-20 relative overflow-hidden"> 
+    <div className="flex h-full w-full bg-neutral-20 relative overflow-hidden md:overflow-visible"> 
       {/* Mobile sidebar overlay - appears when sidebar is open on mobile */}
       {isSidebarOpen && (
         <div 
@@ -475,102 +475,101 @@ const ChatLayout: React.FC<ChatLayoutProps> = () => {
         />
       </div>
 
-      {/* Main content area: Added overflow-x-hidden and padding for desktop */}
-      <div className="flex-1 flex flex-col md:ml-64 overflow-x-hidden">
-        <main className="flex-1 flex flex-col overflow-hidden bg-gray-50 relative w-full">
-          {/* Header: Adjusted padding and height */}
-          <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-2 md:px-6 py-2 bg-white h-16">
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                className="p-2 rounded-md md:hidden h-10 w-10 flex items-center justify-center min-w-10 min-h-10"
-                aria-label="Toggle menu"
-              >
-                {isSidebarOpen ? (
-                  <X className="h-6 w-6 text-gray-700" />
-                ) : (
-                  <Menu className="h-6 w-6 text-gray-700" />
-                )}
-              </button>
-              
-              <div className="ml-0 flex items-center space-x-2" ref={modelDropdownRef}>
-                <div className="relative">
-                  <button
-                    onClick={() => setIsModelDropdownOpen(!isModelDropdownOpen)}
-                    className="flex items-center justify-between w-auto min-w-[140px] sm:min-w-[150px] text-[13px] sm:text-sm py-2 px-3 border border-gray-300 rounded-md shadow-sm bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 h-10 min-h-10"
-                  >
-                    <span className="truncate">{getSelectedModelDisplayName()}</span>
-                    <ChevronDown className={`ml-1 sm:ml-2 h-4 w-4 text-gray-500 transition-transform ${isModelDropdownOpen ? 'rotate-180' : ''}`} />
-                  </button>
-                  {isModelDropdownOpen && (
-                    <div className="absolute left-0 mt-1 w-[200px] sm:w-72 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none py-1 z-30">
-                      <button
-                        onClick={() => handleModelSelect('neuroswitch')}
-                        className={`w-full text-left px-3 py-2.5 text-[13px] sm:text-base flex items-center h-10 min-h-10 ${selectedModel === 'neuroswitch' ? 'bg-orange-100 text-orange-700' : 'text-gray-700 hover:bg-gray-100'}`}
-                      >
-                        NeuroSwitch
-                      </button>
+      {/* Main content area: Adjusted overflow-x-hidden and padding for desktop */}
+      <div className="flex-1 flex flex-col md:ml-64 overflow-hidden"> 
+        {/* Header: On mobile, this div acts as a container for absolutely positioned elements over ChatWindow. On desktop, it's a static header. */}
+        <div className="fixed top-0 left-0 right-0 md:static z-20 flex items-center justify-between px-2 py-2 h-14 md:h-16 bg-transparent md:bg-white md:shadow-sm md:border-b md:border-gray-200 md:px-6">
+            {/* Burger Menu - visible on mobile */} 
+            <button
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              className="p-2 rounded-md md:hidden h-10 w-10 flex items-center justify-center min-w-10 min-h-10 text-gray-700 hover:bg-gray-100 active:bg-gray-200 z-30" // Ensure high z-index if overlapping
+              aria-label="Toggle menu"
+            >
+              {isSidebarOpen ? (
+                <X className="h-6 w-6 text-gray-700" />
+              ) : (
+                <Menu className="h-6 w-6 text-gray-700" />
+              )}
+            </button>
+            
+            <div className="ml-0 flex items-center space-x-2" ref={modelDropdownRef}>
+              <div className="relative">
+                <button
+                  onClick={() => setIsModelDropdownOpen(!isModelDropdownOpen)}
+                  className="flex items-center justify-between w-auto min-w-[140px] sm:min-w-[150px] text-[13px] sm:text-sm py-2 px-3 border border-gray-300 rounded-md shadow-sm bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 h-10 min-h-10"
+                >
+                  <span className="truncate">{getSelectedModelDisplayName()}</span>
+                  <ChevronDown className={`ml-1 sm:ml-2 h-4 w-4 text-gray-500 transition-transform ${isModelDropdownOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {isModelDropdownOpen && (
+                  <div className="absolute left-0 mt-1 w-[200px] sm:w-72 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none py-1 z-30">
+                    <button
+                      onClick={() => handleModelSelect('neuroswitch')}
+                      className={`w-full text-left px-3 py-2.5 text-[13px] sm:text-base flex items-center h-10 min-h-10 ${selectedModel === 'neuroswitch' ? 'bg-orange-100 text-orange-700' : 'text-gray-700 hover:bg-gray-100'}`}
+                    >
+                      NeuroSwitch
+                    </button>
 
-                      {Object.entries(groupedModels).map(([providerKey, providerModels]) => {
-                        if (providerModels.length === 0 && providerKey !== 'openai' && providerKey !== 'claude' && providerKey !== 'gemini') {
-                            return null; 
-                        }
-                        const providerName = providerKey.charAt(0).toUpperCase() + providerKey.slice(1);
-                        
-                        return (
-                          <div key={providerKey}>
-                            <button
-                              onClick={() => toggleProviderSubmenu(providerKey)}
-                              className="w-full text-left px-3 py-2.5 text-[13px] sm:text-base font-medium text-gray-800 hover:bg-gray-100 flex justify-between items-center h-10 min-h-10"
-                            >
-                              <span>{providerName}</span>
-                              <ChevronRight className={`h-4 w-4 text-gray-500 transition-transform ${expandedProvider === providerKey ? 'rotate-90' : ''}`} />
-                            </button>
-                            {expandedProvider === providerKey && (
-                              <div className="pl-3 border-l-2 border-gray-200 ml-1">
+                    {Object.entries(groupedModels).map(([providerKey, providerModels]) => {
+                      if (providerModels.length === 0 && providerKey !== 'openai' && providerKey !== 'claude' && providerKey !== 'gemini') {
+                          return null; 
+                      }
+                      const providerName = providerKey.charAt(0).toUpperCase() + providerKey.slice(1);
+                      
+                      return (
+                        <div key={providerKey}>
+                          <button
+                            onClick={() => toggleProviderSubmenu(providerKey)}
+                            className="w-full text-left px-3 py-2.5 text-[13px] sm:text-base font-medium text-gray-800 hover:bg-gray-100 flex justify-between items-center h-10 min-h-10"
+                          >
+                            <span>{providerName}</span>
+                            <ChevronRight className={`h-4 w-4 text-gray-500 transition-transform ${expandedProvider === providerKey ? 'rotate-90' : ''}`} />
+                          </button>
+                          {expandedProvider === providerKey && (
+                            <div className="pl-3 border-l-2 border-gray-200 ml-1">
+                              <button
+                                onClick={() => handleModelSelect(providerKey)}
+                                className={`w-full text-left px-3 py-2.5 text-[13px] sm:text-base flex items-center h-10 min-h-10 ${selectedModel === providerKey ? 'bg-orange-100 text-orange-600' : 'text-gray-600 hover:bg-gray-50'}`}
+                              >
+                                {providerName} (Default)
+                              </button>
+                              {providerModels.map(model => (
                                 <button
-                                  onClick={() => handleModelSelect(providerKey)}
-                                  className={`w-full text-left px-3 py-2.5 text-[13px] sm:text-base flex items-center h-10 min-h-10 ${selectedModel === providerKey ? 'bg-orange-100 text-orange-600' : 'text-gray-600 hover:bg-gray-50'}`}
+                                  key={model.id}
+                                  onClick={() => handleModelSelect(model.id)}
+                                  className={`w-full text-left px-3 py-2.5 text-[13px] sm:text-base flex items-center h-10 min-h-10 ${selectedModel === model.id ? 'bg-orange-100 text-orange-600' : 'text-gray-600 hover:bg-gray-50'}`}
                                 >
-                                  {providerName} (Default)
+                                  {model.name}
                                 </button>
-                                {providerModels.map(model => (
-                                  <button
-                                    key={model.id}
-                                    onClick={() => handleModelSelect(model.id)}
-                                    className={`w-full text-left px-3 py-2.5 text-[13px] sm:text-base flex items-center h-10 min-h-10 ${selectedModel === model.id ? 'bg-orange-100 text-orange-600' : 'text-gray-600 hover:bg-gray-50'}`}
-                                  >
-                                    {model.name}
-                                  </button>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-                
-                {selectedModel === 'neuroswitch' && (
-                  <span
-                    id="neuroswitch-status-indicator-header"
-                    className={`ml-1 sm:ml-2 text-xs ${neuroStatus === 'green' ? 'text-green-600' : neuroStatus === 'orange' ? 'text-orange-500' : 'text-gray-400'} bg-gray-100 bg-opacity-75 backdrop-blur-sm px-1.5 py-0.5 rounded-full`}
-                    title="NeuroSwitch Status"
-                  >
-                    ● {neuroStatus === 'green' ? 'Active' : neuroStatus === 'orange' ? 'Fallback' : 'Idle'}
-                  </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
                 )}
               </div>
+              
+              {selectedModel === 'neuroswitch' && (
+                <span
+                  id="neuroswitch-status-indicator-header"
+                  className={`ml-1 sm:ml-2 text-xs ${neuroStatus === 'green' ? 'text-green-600' : neuroStatus === 'orange' ? 'text-orange-500' : 'text-gray-400'} bg-gray-100 bg-opacity-75 backdrop-blur-sm px-1.5 py-0.5 rounded-full`}
+                  title="NeuroSwitch Status"
+                >
+                  ● {neuroStatus === 'green' ? 'Active' : neuroStatus === 'orange' ? 'Fallback' : 'Idle'}
+                </span>
+              )}
             </div>
             
-            <div className="flex items-center">
+            {/* User Avatar/Menu - right aligned */} 
+            <div className="flex items-center z-30"> {/* Ensure high z-index */} 
             <span className="sr-only">Open user menu</span>
               {authStatus ? (
                 <div ref={dropdownRef} className="relative">
                   <button
                     onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                    className="flex items-center justify-center h-10 w-10 rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 min-w-10 min-h-10"
+                    className="flex items-center justify-center h-9 w-9 md:h-10 md:w-10 rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 min-w-9 min-h-9 md:min-w-10 md:min-h-10"
                   >
                     {renderAvatar()} 
                   </button>
@@ -609,18 +608,22 @@ const ChatLayout: React.FC<ChatLayoutProps> = () => {
                 </button>
               )}
             </div>
-          </div>
+        </div> 
 
-          <ChatWindow 
-            activeChatId={activeChatId} 
-            onChatCreated={handleChatCreated}
-            selectedModel={selectedModel}
-            setSelectedModel={setSelectedModel}
-            neuroStatus={neuroStatus}
-            setNeuroStatus={setNeuroStatus}
-            allModels={allModels}
-            promptForLogin={openLoginModal}
-          />
+        {/* Main content area for ChatWindow. On mobile, it will effectively start from the top, with header controls overlaying it. */}
+        {/* The pt-14 on mobile here is important to ensure content in ChatWindow doesn't go under the floating controls. */}
+        {/* ChatWindow's own internal ::before pseudo-element for its own top padding might need adjustment if this isn't enough. */} 
+        <main className="flex-1 flex flex-col overflow-y-auto bg-gray-50 relative w-full pt-14 md:pt-0">
+            <ChatWindow 
+              activeChatId={activeChatId} 
+              onChatCreated={handleChatCreated}
+              selectedModel={selectedModel}
+              setSelectedModel={setSelectedModel}
+              neuroStatus={neuroStatus}
+              setNeuroStatus={setNeuroStatus}
+              allModels={allModels}
+              promptForLogin={openLoginModal}
+            />
         </main>
       </div>
     </div>
