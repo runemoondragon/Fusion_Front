@@ -804,34 +804,36 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   );
   
   return (
-    <div className="flex flex-col h-full w-full relative font-sans">
+    <div className="flex flex-col h-full w-full relative font-sans overflow-hidden">
       {/* Messages Area */}
       <div 
         ref={chatContainerRef}
-        className="flex-1 overflow-y-auto pt-16 pb-48 chat-messages-container"
+        className={`flex-1 overflow-y-auto pt-16 chat-messages-container ${hasMessages ? 'pb-48' : 'pb-0'}`}
       >
-        <div className="mx-auto w-full max-w-3xl px-2">
-          {isLoadingMessages && messages.length === 0 ? (
-            <div className="flex justify-center items-center h-full text-base text-gray-600">
-              Loading messages...
-            </div>
-          ) : !hasMessages ? (
-            <div className="flex flex-col items-center justify-center text-center min-h-[60vh] mt-40">
-              <h1 className="text-2xl md:text-3xl font-medium text-gray-700 mb-6 md:mb-8">
-                {user?.displayName ? `Good to see you, ${user.displayName}.` : 'Good to see you.'}
-              </h1>
-            </div>
-          ) : (
-            <div className="pb-4">
-              {renderMessages()}
-            </div>
-          )}
-          <div ref={messagesEndRef} />
-        </div>
+        {!hasMessages ? (
+          <div className="h-full flex flex-col items-center justify-center text-center px-2">
+            <h1 className="text-2xl md:text-3xl font-medium text-gray-700 mb-6 md:mb-8">
+              {user?.displayName ? `Good to see you, ${user.displayName}.` : 'Good to see you.'}
+            </h1>
+          </div>
+        ) : (
+          <div className="mx-auto w-full max-w-3xl px-2">
+            {isLoadingMessages && messages.length === 0 ? (
+              <div className="flex justify-center items-center h-full text-base text-gray-600">
+                Loading messages...
+              </div>
+            ) : (
+              <div className="pb-4">
+                {renderMessages()}
+              </div>
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+        )}
       </div>
 
       {/* Fixed Input Area */}
-      <div className="fixed bottom-0 left-0 right-0 bg-gray-50 safe-area-inset-bottom md:left-64">
+      <div className="fixed bottom-0 left-0 right-0 bg-gray-50 safe-area-inset-bottom md:left-64" style={{ bottom: 'env(keyboard-inset-height, 0px)' }}>
         <div className="max-w-3xl mx-auto px-2 md:px-4 py-2 md:py-4">
           <form onSubmit={handleSend} className="relative w-full bg-white rounded-2xl border border-gray-300 p-2 md:p-3 shadow-xl">
             {imagePreview && (
