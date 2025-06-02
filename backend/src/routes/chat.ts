@@ -282,7 +282,7 @@ if (chatIdFromHeader) { // Removed isProd condition
 
   try {
     const neuroSwitchUrl = process.env.NEUROSWITCH_API_URL || 'http://localhost:5001/chat'; // Default local NeuroSwitch
-    
+
     const payloadToNeuroSwitch: any = {
       message: prompt,
       history: dbHistory,
@@ -292,7 +292,7 @@ if (chatIdFromHeader) { // Removed isProd condition
       ...(image && { image_data: image }),
       ...(mode && { chat_mode: mode }),
     };
-
+    
     // Headers for NeuroSwitch request
     const neuroSwitchHeaders: Record<string, string> = {
       'Authorization': `Bearer ${process.env.NEUROSWITCH_API_KEY || ''}`,

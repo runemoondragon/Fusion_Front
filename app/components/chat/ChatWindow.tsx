@@ -839,7 +839,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       <div 
         ref={chatContainerRef}
         className="flex-1 overflow-y-auto pt-16 chat-messages-container flex flex-col"
-        style={isMobileView && isTextareaFocused ? { paddingBottom: `${inputAreaHeight + 16}px` } : { paddingBottom: '0px' } } // Dynamic padding for fixed input
+        style={isMobileView ? { paddingBottom: `${inputAreaHeight + 16}px` } : { paddingBottom: '0px' } } // Changed condition here
       >
         <div
           className={`mx-auto w-full max-w-3xl px-2 ${
@@ -858,7 +858,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                 {user?.displayName ? `Good to see you, ${user.displayName}.` : 'Good to see you.'}
               </h1>
               <div className="w-full max-w-xl md:max-w-2xl pointer-events-auto">
-                <form onSubmit={handleSend} className="relative w-full bg-white rounded-lg border border-gray-300 p-3 shadow-xl">
+                <form onSubmit={handleSend} className="relative w-full bg-white rounded-2xl border border-gray-300 p-3 shadow-xl">
                   {imagePreview && (
                     <div className="mb-2 flex justify-center">
                       <div className="relative inline-block">
@@ -914,28 +914,43 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         {hasMessages && (
           <div 
             ref={inputAreaRef}
-            className={`input-wrapper mt-auto pt-4 w-full bg-transparent z-10 
-                        ${isMobileView && isTextareaFocused ? 'fixed bottom-0 left-0 right-0 bg-white dark:bg-neutral-800 border-t border-gray-200 dark:border-neutral-700 shadow-top' : ''}
-                        ${isMobileView && !isTextareaFocused ? 'pb-4' : ''} // Add padding at bottom when not focused on mobile to see last msg
-                      `}
+            className="input-wrapper"
+            style={isMobileView ? {
+              position: 'fixed',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              backgroundColor: 'transparent',
+              paddingTop: '0.5rem',
+              paddingBottom: '0.5rem',
+              paddingLeft: '0.5rem',
+              paddingRight: '0.5rem',
+              zIndex: 10
+            } : {
+              backgroundColor: '#F9FAFB', // Tailwind gray-50
+              paddingTop: '1rem',
+              marginTop: 'auto',
+              width: '100%',
+              zIndex: 10
+            }}
           >
-            <div className="max-w-5xl mx-auto px-2 md:px-3 w-full">
-              <form onSubmit={handleSend} className={`relative w-full bg-white rounded-lg border border-gray-200 p-2 shadow-md ${isMobileView && isTextareaFocused ? 'rounded-none border-0 shadow-none' : ''}`}>
+            <div className="max-w-5xl mx-auto w-full md:px-3">
+              <form onSubmit={handleSend} className="relative w-full bg-white rounded-2xl border border-gray-300 p-2 shadow-xl">
                 {imagePreview && (
                   <div className="mb-1">
                     <div className="relative inline-block">
                       <img className="max-h-16 sm:max-h-24 rounded-lg" src={imagePreview} alt="Preview" />
-                      <button type="button" onClick={handleRemoveImage} className="absolute -top-1 -right-1 sm:-top-2 sm:-right-2 bg-white rounded-full p-1.5 shadow-sm hover:bg-gray-100 h-10 w-10 flex items-center justify-center min-w-10 min-h-10" title="Remove image">
+                      <button type="button" onClick={handleRemoveImage} className="absolute -top-1 -right-1 sm:-top-2 sm:-right-2 bg-white rounded-full p-1 shadow-sm hover:bg-gray-100 h-10 w-10 flex items-center justify-center min-w-10 min-h-10" title="Remove image">
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-500" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
                       </button>
                     </div>
                   </div>
                 )}
-                <div className="mb-2 text-sm text-gray-500">
+                <div className="mb-2 text-sm text-gray-500 bg-transparent">
                   <span>Tokens Used: {tokensUsed} / {maxTokens} ({Math.floor((tokensUsed / maxTokens) * 100)}%)</span>
                   <div className="w-full bg-gray-200 h-2 rounded"><div className="bg-blue-500 h-2 rounded" style={{ width: `${Math.min((tokensUsed / maxTokens) * 100, 100)}%` }}></div></div>
                 </div>
-                <div className="flex items-end space-x-2 w-full">
+                <div className="flex items-end space-x-2 w-full bg-transparent">
                   <button type="button" onClick={handleImageUploadClick} className="p-2.5 text-gray-500 hover:text-gray-700 h-10 w-10 flex items-center justify-center min-w-10 min-h-10" title="Upload Image">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                   </button>
@@ -956,7 +971,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" /></svg>
                   </button>
                 </div>
-                <div className="mt-2 overflow-x-auto pb-1 feature-buttons-container w-full">
+                <div className="mt-2 overflow-x-auto pb-1 feature-buttons-container w-full bg-transparent">
                   <div className="flex items-center flex-wrap gap-1.5 justify-center">
                     {[ 
                       { key: 'deep_research', label: 'Deep Research', icon: <FileText className="h-4 w-4 mr-1" /> }, 
@@ -968,8 +983,9 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                 </div>
               </form>
               <p className="text-xs text-gray-500 pt-2 text-center">
-              All can make mistakes. Check important info. 
+              All can make mistakes. Check important info.
               </p>
+
             </div>
           </div>
         )}

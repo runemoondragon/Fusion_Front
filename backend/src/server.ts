@@ -373,8 +373,8 @@ app.post('/auth/email/register', async (req: Request, res: Response) => {
       const newUserResult: QueryResult<DbUser> = await client.query(
         'INSERT INTO users (email, password_hash, display_name, is_active, is_verified, email_verification_token, email_verification_token_expires_at) VALUES ($1, $2, $3, TRUE, FALSE, $4, $5) RETURNING *',
         [email.toLowerCase(), hashedPassword, displayName || email.split('@')[0], verificationToken, tokenExpiryDate]
-      );
-      const newUser = newUserResult.rows[0];
+    );
+    const newUser = newUserResult.rows[0];
       
       await setupNewUserDefaults(newUser.id, client);
       const emailSendResult = await sendVerificationEmail(newUser.email, verificationToken);
@@ -418,7 +418,7 @@ app.post('/auth/email/login', async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'INVALID_CREDENTIALS', message: 'Invalid email or password.' });
     }
     let user = userResult.rows[0];
-
+    
     // Check if password_hash exists (it might be null for OAuth users who never set a local password)
     if (!user.password_hash) {
         return res.status(401).json({ error: 'INVALID_CREDENTIALS', message: 'Login with your social provider or set a password for your account.'});

@@ -492,7 +492,7 @@ const ChatLayout: React.FC<ChatLayoutProps> = () => {
               )}
             </button>
             
-            <div className="ml-0 flex items-center space-x-2" ref={modelDropdownRef}>
+            <div className="ml-0 md:ml-4 flex items-center space-x-2" ref={modelDropdownRef}>
               <div className="relative">
                 <button
                   onClick={() => setIsModelDropdownOpen(!isModelDropdownOpen)}
