@@ -146,95 +146,12 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
-  const chatContainerRef = useRef<HTMLDivElement | null>(null); // Ref for the scrollable message container
-  const inputAreaRef = useRef<HTMLDivElement | null>(null); // Ref for the input area
+  const chatContainerRef = useRef<HTMLDivElement | null>(null);
 
-  const [isLoadingMessages, setIsLoadingMessages] = useState(false); // New state for loading existing chat
-  const [isMobileView, setIsMobileView] = useState(false);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [isScrolledUp, setIsScrolledUp] = useState(false);
-  const [inputAreaHeight, setInputAreaHeight] = useState(0);
-  const [isTextareaFocused, setIsTextareaFocused] = useState(false);
 
-  const hasMessages = messages.length > 0; // DETECT IF THERE ARE MESSAGES
-
-  // Effect to detect mobile view
-  useEffect(() => {
-    const checkMobileView = () => {
-      setIsMobileView(window.innerWidth < 768); // md breakpoint
-    };
-    checkMobileView();
-    window.addEventListener('resize', checkMobileView);
-    return () => window.removeEventListener('resize', checkMobileView);
-  }, []);
-
-  // Effect to measure input area height
-  useEffect(() => {
-    if (inputAreaRef.current) { // Measure always if ref is available, specific padding logic is conditional elsewhere
-      setInputAreaHeight(inputAreaRef.current.offsetHeight);
-    } else {
-      setInputAreaHeight(0);
-    }
-  }, [isMobileView, input, imagePreview, currentMode, loading, messages.length]); // Re-calculate if things in input area change height or if input bar appears
-
-  // NEW: Effect for visualViewport API to adjust layout for on-screen keyboard on mobile
-  useEffect(() => {
-    const inputDiv = inputAreaRef.current;
-    const messagesDiv = chatContainerRef.current;
-
-    if (!isMobileView || !window.visualViewport || !inputDiv || !messagesDiv) {
-      // If not mobile, or API not supported, or refs not ready, clear any explicit styles and do nothing further
-      if (inputDiv) inputDiv.style.bottom = '0px'; // Ensure it's at the actual bottom if visualViewport logic isn't running
-      if (messagesDiv && isMobileView) {
-         // Fallback padding if visualViewport is not used but it's mobile
-         messagesDiv.style.paddingBottom = `${inputAreaHeight + 16}px`; 
-      } else if (messagesDiv) {
-         messagesDiv.style.paddingBottom = '0px'; // Desktop default
-      }
-      return;
-    }
-
-    const vv = window.visualViewport;
-
-    const adjustLayoutForKeyboard = () => {
-      if (!inputDiv || !messagesDiv) return; // Check refs again inside handler
-
-      const keyboardOffset = window.innerHeight - vv.height;
-      inputDiv.style.bottom = `${keyboardOffset}px`;
-
-      // Padding for messagesDiv: height of input bar + keyboard offset + base padding
-      // No, padding for messagesDiv should just be height of input bar + base padding.
-      // The keyboardOffset is handled by the inputDiv's `bottom` style.
-      messagesDiv.style.paddingBottom = `${inputAreaHeight + 16}px`;
-      
-      // Optional: Scroll to keep the very last message visible if keyboard pushes content up
-      // This might be redundant if the focus scroll works well, but can be a fallback.
-      // messagesDiv.scrollTo({ top: messagesDiv.scrollHeight, behavior: 'auto' });
-    };
-
-    vv.addEventListener('resize', adjustLayoutForKeyboard);
-    // vv.addEventListener('scroll', adjustLayoutForKeyboard); // Usually resize is enough
-    adjustLayoutForKeyboard(); // Initial call
-
-    return () => {
-      vv.removeEventListener('resize', adjustLayoutForKeyboard);
-      // vv.removeEventListener('scroll', adjustLayoutForKeyboard);
-      // Reset styles when effect cleans up (e.g., switching from mobile to desktop view)
-      if (inputDiv) inputDiv.style.bottom = '0px';
-      if (messagesDiv) messagesDiv.style.paddingBottom = isMobileView ? `${inputAreaHeight + 16}px` : '0px';
-    };
-  // Dependencies: isMobileView to enable/disable, inputAreaHeight because it affects padding logic,
-  // and refs themselves to ensure they are bound.
-  }, [isMobileView, inputAreaHeight, inputAreaRef, chatContainerRef]);
-
-  // NEW: Effect to scroll textarea into view when focused on mobile
-  useEffect(() => {
-    if (isMobileView && isTextareaFocused && textareaRef.current) {
-      const timer = setTimeout(() => {
-        textareaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      }, 150); // Short delay after focus to allow other layout adjustments
-      return () => clearTimeout(timer);
-    }
-  }, [isMobileView, isTextareaFocused, textareaRef]); // Dependency on textareaRef to ensure it's available
+  const hasMessages = messages.length > 0;
 
   // Effect to handle activeChatId changes (new chat, loading existing chat)
   useEffect(() => {
@@ -594,10 +511,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         promptForLogin();
         return;
       }
-      // Ensure textarea blur on mobile after send to help keyboard hide
-      if (isMobileView && textareaRef.current) {
-        textareaRef.current.blur();
-      }
       if (!loading && (input.trim() || imageData)) {
         handleSend(); 
       }
@@ -607,10 +520,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       if (!user) {
         promptForLogin();
         return;
-      }
-      // Ensure textarea blur on mobile after send to help keyboard hide
-      if (isMobileView && textareaRef.current) {
-        textareaRef.current.blur();
       }
       if (!loading && (input.trim() || imageData)) {
         handleSend();
@@ -895,159 +804,102 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   );
   
   return (
-    <div className="flex flex-col h-full w-full relative font-sans px-0 md:px-0">
+    <div className="flex flex-col h-full w-full relative font-sans">
+      {/* Messages Area */}
       <div 
         ref={chatContainerRef}
-        className="flex-1 overflow-y-auto pt-16 chat-messages-container flex flex-col"
-        style={!isMobileView ? { paddingBottom: '0px' } : { /* Managed by JS on mobile */ }}
+        className="flex-1 overflow-y-auto pt-16 pb-48 chat-messages-container"
       >
-        <div
-          className={`mx-auto w-full max-w-3xl px-2 ${
-            !hasMessages
-              ? 'flex flex-col items-center justify-start text-center min-h-[60vh] mt-40'
-              : 'pb-4'
-          }`}
-        >
+        <div className="mx-auto w-full max-w-3xl px-2">
           {isLoadingMessages && messages.length === 0 ? (
             <div className="flex justify-center items-center h-full text-base text-gray-600">
               Loading messages...
             </div>
           ) : !hasMessages ? (
-            <div className="flex flex-col items-center w-full">
-              <h1 className="text-2xl md:text-3xl font-medium text-gray-700 mb-6 md:mb-8 pointer-events-auto">
+            <div className="flex flex-col items-center justify-center text-center min-h-[60vh] mt-40">
+              <h1 className="text-2xl md:text-3xl font-medium text-gray-700 mb-6 md:mb-8">
                 {user?.displayName ? `Good to see you, ${user.displayName}.` : 'Good to see you.'}
               </h1>
-              <div className="w-full max-w-xl md:max-w-2xl pointer-events-auto">
-                <form onSubmit={handleSend} className="relative w-full bg-white rounded-2xl border border-gray-300 p-3 shadow-xl">
-                  {imagePreview && (
-                    <div className="mb-2 flex justify-center">
-                      <div className="relative inline-block">
-                        <img className="max-h-20 sm:max-h-28 rounded-lg" src={imagePreview} alt="Preview" />
-                        <button type="button" onClick={handleRemoveImage} className="absolute -top-1.5 -right-1.5 bg-gray-200 hover:bg-gray-300 rounded-full p-1 shadow-md h-7 w-7 flex items-center justify-center min-w-7 min-h-7" title="Remove image">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-600" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                  <div className="flex items-end space-x-2 w-full">
-                    <button type="button" onClick={handleImageUploadClick} className="p-2.5 text-gray-500 hover:text-gray-700 h-10 w-10 flex items-center justify-center min-w-10 min-h-10" title="Upload Image">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                    </button>
-                    <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*" />
-                    <textarea 
-                        ref={textareaRef} 
-                        value={input} 
-                        onChange={handleTextareaChange} 
-                        onKeyDown={handleKeyDown} 
-                        onFocus={() => setIsTextareaFocused(true)}
-                        onBlur={() => setIsTextareaFocused(false)}
-                        rows={1} 
-                        className="flex-1 border-0 bg-transparent p-2 focus:ring-0 focus:outline-none resize-none max-h-32 overflow-y-auto min-h-[2.5rem] text-base w-full textarea-placeholder-sm" placeholder="Ask a question..." 
-                        style={{ height: '40px' }} 
-                    />
-                    <button type="submit" disabled={loading || (!input.trim() && !imageData)} className={`p-2.5 text-blue-600 hover:text-blue-700 h-10 w-10 flex items-center justify-center min-w-10 min-h-10 ${loading || (!input.trim() && !imageData) ? 'opacity-50 cursor-not-allowed' : ''}`} title="Send Message">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" /></svg>
-                    </button>
-                  </div>
-                  <div className="mt-3 overflow-x-auto feature-buttons-container w-full">
-                    <div className="flex items-center flex-wrap gap-1.5 justify-center">
-                      {[ 
-                        { key: 'deep_research', label: 'Deep Research', icon: <FileText className="h-4 w-4 mr-1" /> }, 
-                        { key: 'think', label: 'Think', icon: <Lightbulb className="h-4 w-4 mr-1" /> }, 
-                        { key: 'write_code', label: 'Write/Code', icon: <Code className="h-4 w-4 mr-1" /> }, 
-                        { key: 'image', label: 'Image', icon: <Eye className="h-4 w-4 mr-1" /> }, 
-                      ].map((mode) => ( <button key={mode.key} type="button" onClick={() => handleModeButtonClick(mode.key)} className={`feature-button inline-flex items-center p-2 sm:px-2.5 sm:py-1.5 rounded-md border text-xs sm:text-sm whitespace-nowrap h-9 min-h-9 ${currentMode === mode.key ? 'bg-blue-100 text-blue-700 border-blue-300' : 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200'}`}> {mode.icon} <span className="hidden sm:inline">{mode.label}</span> </button> ))}
-                    </div>
-                  </div>
-                </form>
-                <p className="text-xs text-gray-500 mt-4 text-center pointer-events-auto">
-                  By messaging, you agree to our <a href="/terms" className="underline hover:text-blue-600" target="_blank" rel="noopener noreferrer">Terms</a> and have read our <a href="/privacy" className="underline hover:text-blue-600" target="_blank" rel="noopener noreferrer">Privacy Policy</a>.
-                </p>
-              </div>
             </div>
           ) : (
-            renderMessages()
+            <div className="pb-4">
+              {renderMessages()}
+            </div>
           )}
           <div ref={messagesEndRef} />
         </div>
+      </div>
 
-        {hasMessages && (
-          <div 
-            ref={inputAreaRef}
-            className="input-wrapper"
-            style={isMobileView ? {
-              position: 'fixed',
-              left: 0,
-              right: 0,
-              backgroundColor: '#F9FAFB', // Changed from 'transparent' to match desktop
-              paddingTop: '0.5rem',
-              paddingBottom: '0.5rem',
-              paddingLeft: '0.5rem',
-              paddingRight: '0.5rem',
-              zIndex: 10
-            } : {
-              backgroundColor: '#F9FAFB', // Tailwind gray-50
-              paddingTop: '1rem',
-              marginTop: 'auto',
-              width: '100%',
-              zIndex: 10
-            }}
-          >
-            <div className="max-w-5xl mx-auto w-full md:px-3">
-              <form onSubmit={handleSend} className="relative w-full bg-white rounded-2xl border border-gray-300 p-2 shadow-xl">
-                {imagePreview && (
-                  <div className="mb-1">
-                    <div className="relative inline-block">
-                      <img className="max-h-16 sm:max-h-24 rounded-lg" src={imagePreview} alt="Preview" />
-                      <button type="button" onClick={handleRemoveImage} className="absolute -top-1 -right-1 sm:-top-2 sm:-right-2 bg-white rounded-full p-1 shadow-sm hover:bg-gray-100 h-10 w-10 flex items-center justify-center min-w-10 min-h-10" title="Remove image">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-500" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
-                      </button>
-                    </div>
-                  </div>
-                )}
-                <div className="mb-2 text-sm text-gray-500 bg-transparent">
-                  <span>Tokens Used: {tokensUsed} / {maxTokens} ({Math.floor((tokensUsed / maxTokens) * 100)}%)</span>
-                  <div className="w-full bg-gray-200 h-2 rounded"><div className="bg-blue-500 h-2 rounded" style={{ width: `${Math.min((tokensUsed / maxTokens) * 100, 100)}%` }}></div></div>
-                </div>
-                <div className="flex items-end space-x-2 w-full bg-transparent">
-                  <button type="button" onClick={handleImageUploadClick} className="p-2.5 text-gray-500 hover:text-gray-700 h-10 w-10 flex items-center justify-center min-w-10 min-h-10" title="Upload Image">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                  </button>
-                  <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*" />
-                  <textarea 
-                    ref={textareaRef} 
-                    value={input} 
-                    onChange={handleTextareaChange} 
-                    onKeyDown={handleKeyDown} 
-                    onFocus={() => setIsTextareaFocused(true)}
-                    onBlur={() => setIsTextareaFocused(false)}
-                    rows={1} 
-                    className="flex-1 border-0 bg-transparent p-2 focus:ring-0 focus:outline-none resize-none max-h-32 overflow-y-auto min-h-[2.5rem] text-base w-full textarea-placeholder-sm" 
-                    placeholder="Enter to send, Shift+Enter for new line" 
-                    style={{ height: '50px' }} 
-                  />
-                  <button type="submit" disabled={loading || (!input.trim() && !imageData)} className={`p-2.5 text-blue-600 hover:text-blue-700 h-10 w-10 flex items-center justify-center min-w-10 min-h-10 ${loading || (!input.trim() && !imageData) ? 'opacity-50 cursor-not-allowed' : ''}`} title="Send Message">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" /></svg>
+      {/* Fixed Input Area */}
+      <div className="fixed bottom-0 left-0 right-0 bg-gray-50 safe-area-inset-bottom md:left-64">
+        <div className="max-w-3xl mx-auto px-2 md:px-4 py-2 md:py-4">
+          <form onSubmit={handleSend} className="relative w-full bg-white rounded-2xl border border-gray-300 p-2 md:p-3 shadow-xl">
+            {imagePreview && (
+              <div className="mb-2 flex justify-center">
+                <div className="relative inline-block">
+                  <img className="max-h-16 md:max-h-20 rounded-lg" src={imagePreview} alt="Preview" />
+                  <button type="button" onClick={handleRemoveImage} className="absolute -top-1.5 -right-1.5 bg-gray-200 hover:bg-gray-300 rounded-full p-1 shadow-md h-6 w-6 md:h-7 md:w-7 flex items-center justify-center min-w-6 min-h-6 md:min-w-7 md:min-h-7" title="Remove image">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 md:h-4 md:w-4 text-gray-600" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
                   </button>
                 </div>
-                <div className="mt-2 overflow-x-auto pb-1 feature-buttons-container w-full bg-transparent">
-                  <div className="flex items-center flex-wrap gap-1.5 justify-center">
-                    {[ 
-                      { key: 'deep_research', label: 'Deep Research', icon: <FileText className="h-4 w-4 mr-1" /> }, 
-                      { key: 'think', label: 'Think', icon: <Lightbulb className="h-4 w-4 mr-1" /> }, 
-                      { key: 'write_code', label: 'Write/Code', icon: <Code className="h-4 w-4 mr-1" /> }, 
-                      { key: 'image', label: 'Image', icon: <Eye className="h-4 w-4 mr-1" /> }, 
-                    ].map((mode) => ( <button key={mode.key} type="button" onClick={() => handleModeButtonClick(mode.key)} className={`feature-button inline-flex items-center p-2 sm:px-2.5 sm:py-1.5 rounded-md border text-xs sm:text-sm whitespace-nowrap h-9 min-h-9 ${currentMode === mode.key ? 'bg-blue-100 text-blue-700 border-blue-300' : 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200'}`}> {mode.icon} <span className="hidden sm:inline">{mode.label}</span> </button> ))}
-                  </div>
-                </div>
-              </form>
-              <p className="text-xs text-gray-500 pt-2 text-center">
-              AI can make mistakes. Check important info.
-              </p>
+              </div>
+            )}
 
+            {hasMessages && (
+              <div className="mb-2 text-xs md:text-sm text-gray-500">
+                <span>Tokens Used: {tokensUsed} / {maxTokens} ({Math.floor((tokensUsed / maxTokens) * 100)}%)</span>
+                <div className="w-full bg-gray-200 h-1.5 md:h-2 rounded"><div className="bg-blue-500 h-1.5 md:h-2 rounded" style={{ width: `${Math.min((tokensUsed / maxTokens) * 100, 100)}%` }}></div></div>
+              </div>
+            )}
+
+            <div className="flex items-end space-x-2 w-full">
+              <button type="button" onClick={handleImageUploadClick} className="p-2 md:p-2.5 text-gray-500 hover:text-gray-700 h-9 w-9 md:h-10 md:w-10 flex items-center justify-center min-w-9 min-h-9 md:min-w-10 md:min-h-10" title="Upload Image">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 md:h-5 md:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+              </button>
+              <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*" />
+              <textarea 
+                ref={textareaRef} 
+                value={input} 
+                onChange={handleTextareaChange} 
+                onKeyDown={handleKeyDown} 
+                rows={1} 
+                className="flex-1 border-0 bg-transparent p-2 focus:ring-0 focus:outline-none resize-none max-h-32 overflow-y-auto min-h-[2rem] md:min-h-[2.5rem] text-base w-full" 
+                placeholder={hasMessages ? "Enter to send, Shift+Enter for new line" : "Ask a question..."}
+                style={{ height: '32px' }} 
+              />
+              <button type="submit" disabled={loading || (!input.trim() && !imageData)} className={`p-2 md:p-2.5 text-blue-600 hover:text-blue-700 h-9 w-9 md:h-10 md:w-10 flex items-center justify-center min-w-9 min-h-9 md:min-w-10 md:min-h-10 ${loading || (!input.trim() && !imageData) ? 'opacity-50 cursor-not-allowed' : ''}`} title="Send Message">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 md:h-5 md:w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" /></svg>
+              </button>
             </div>
-          </div>
-        )}
+
+            <div className="mt-2 md:mt-3 overflow-x-auto feature-buttons-container w-full">
+              <div className="flex items-center flex-wrap gap-1 md:gap-1.5 justify-center">
+                {[ 
+                  { key: 'deep_research', label: 'Deep Research', icon: <FileText className="h-3 w-3 md:h-4 md:w-4 mr-1" /> }, 
+                  { key: 'think', label: 'Think', icon: <Lightbulb className="h-3 w-3 md:h-4 md:w-4 mr-1" /> }, 
+                  { key: 'write_code', label: 'Write/Code', icon: <Code className="h-3 w-3 md:h-4 md:w-4 mr-1" /> }, 
+                  { key: 'image', label: 'Image', icon: <Eye className="h-3 w-3 md:h-4 md:w-4 mr-1" /> }, 
+                ].map((mode) => ( 
+                  <button key={mode.key} type="button" onClick={() => handleModeButtonClick(mode.key)} className={`feature-button inline-flex items-center px-2 py-1 md:px-2.5 md:py-1.5 rounded-md border text-xs sm:text-sm whitespace-nowrap h-7 md:h-9 min-h-7 md:min-h-9 ${currentMode === mode.key ? 'bg-blue-100 text-blue-700 border-blue-300' : 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200'}`}> 
+                    {mode.icon} <span className="hidden sm:inline">{mode.label}</span> 
+                  </button> 
+                ))}
+              </div>
+            </div>
+          </form>
+          
+          {!hasMessages && (
+            <p className="text-xs text-gray-500 mt-2 md:mt-4 text-center px-2">
+              By messaging, you agree to our <a href="/terms" className="underline hover:text-blue-600" target="_blank" rel="noopener noreferrer">Terms</a> and have read our <a href="/privacy" className="underline hover:text-blue-600" target="_blank" rel="noopener noreferrer">Privacy Policy</a>.
+            </p>
+          )}
+          
+          {hasMessages && (
+            <p className="text-xs text-gray-500 pt-1 md:pt-2 text-center px-2">
+              AI can make mistakes. Check important info.
+            </p>
+          )}
+        </div>
       </div>
     </div>
   );
