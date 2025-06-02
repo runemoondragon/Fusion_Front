@@ -979,7 +979,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
               position: 'fixed',
               left: 0,
               right: 0,
-              backgroundColor: 'transparent',
+              backgroundColor: '#F9FAFB', // Changed from 'transparent' to match desktop
               paddingTop: '0.5rem',
               paddingBottom: '0.5rem',
               paddingLeft: '0.5rem',
