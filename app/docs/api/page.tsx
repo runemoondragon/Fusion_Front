@@ -1,363 +1,256 @@
 import React from 'react';
 import Link from 'next/link';
-import { Terminal, Key, Shield, Zap, Clock, AlertTriangle } from 'lucide-react';
+import { Terminal, Key, Shield, Zap, Clock, AlertTriangle, Settings, BarChart3, ExternalLink } from 'lucide-react';
 
 export default function APIReferencePage() {
+  const apiSections = [
+    {
+      title: 'Authentication',
+      href: '/docs/api/auth',
+      icon: <Shield className="w-6 h-6" />,
+      color: 'green',
+      description: 'API key setup, JWT tokens, and security best practices'
+    },
+    {
+      title: 'Parameters',
+      href: '/docs/api/parameters',
+      icon: <Settings className="w-6 h-6" />,
+      color: 'blue',
+      description: 'Complete parameter reference with types and validation'
+    },
+    {
+      title: 'Error Handling',
+      href: '/docs/api/errors',
+      icon: <AlertTriangle className="w-6 h-6" />,
+      color: 'red',
+      description: 'HTTP status codes, error messages, and troubleshooting'
+    },
+    {
+      title: 'Rate Limits',
+      href: '/docs/api/limits',
+      icon: <Clock className="w-6 h-6" />,
+      color: 'yellow',
+      description: 'Usage limits, tier comparisons, and optimization strategies'
+    }
+  ];
+
+  const getColorClasses = (color: string) => {
+    const colors = {
+      green: 'bg-green-50 border-green-200 text-green-900 hover:border-green-300',
+      blue: 'bg-blue-50 border-blue-200 text-blue-900 hover:border-blue-300',
+      red: 'bg-red-50 border-red-200 text-red-900 hover:border-red-300',
+      yellow: 'bg-yellow-50 border-yellow-200 text-yellow-900 hover:border-yellow-300'
+    };
+    return colors[color as keyof typeof colors] || colors.blue;
+  };
+
   return (
-    <div className="space-y-8">
-      <div>
+    <div className="space-y-12">
+      {/* Hero Section */}
+      <div className="text-center">
         <h1 className="text-4xl font-bold text-gray-900 mb-4">API Reference</h1>
-        <p className="text-xl text-gray-600">
-          Complete documentation for the Fusion AI API. Build powerful AI applications with our unified interface.
+        <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+          Complete documentation for the Fusion AI API. Build powerful applications with our unified interface 
+          to multiple AI providers, intelligent routing, and advanced features.
         </p>
       </div>
 
-      {/* Quick Links */}
-      <div className="grid md:grid-cols-3 gap-4">
-        <Link href="/docs/api/endpoints" className="bg-blue-50 border border-blue-200 rounded-lg p-4 hover:border-blue-300 transition-colors">
-          <Terminal className="w-6 h-6 text-blue-600 mb-2" />
-          <h3 className="font-semibold text-blue-900">Endpoints</h3>
-          <p className="text-blue-700 text-sm">All available API endpoints</p>
-        </Link>
-        
-        <Link href="/docs/api/auth" className="bg-green-50 border border-green-200 rounded-lg p-4 hover:border-green-300 transition-colors">
-          <Shield className="w-6 h-6 text-green-600 mb-2" />
-          <h3 className="font-semibold text-green-900">Authentication</h3>
-          <p className="text-green-700 text-sm">API keys and security</p>
-        </Link>
-        
-        <Link href="/docs/api/errors" className="bg-red-50 border border-red-200 rounded-lg p-4 hover:border-red-300 transition-colors">
-          <AlertTriangle className="w-6 h-6 text-red-600 mb-2" />
-          <h3 className="font-semibold text-red-900">Error Handling</h3>
-          <p className="text-red-700 text-sm">Error codes and responses</p>
-        </Link>
-      </div>
-
-      {/* Base URLs */}
-      <section className="bg-white rounded-lg p-8 shadow-sm border border-gray-200">
-        <h2 className="text-2xl font-bold text-gray-900 mb-6">Base URLs</h2>
-        
-        <div className="space-y-4">
-          <div className="bg-gray-50 rounded-lg p-4">
-            <h3 className="font-semibold text-gray-900 mb-2">Production</h3>
-            <code className="text-blue-600 bg-blue-50 px-3 py-1 rounded">https://api.mcp4.ai</code>
-            <p className="text-gray-600 text-sm mt-2">Use this for all production applications</p>
-          </div>
-          
-          <div className="bg-gray-50 rounded-lg p-4">
-            <h3 className="font-semibold text-gray-900 mb-2">Alternative Endpoint</h3>
-            <code className="text-blue-600 bg-blue-50 px-3 py-1 rounded">https://neuro.mcp4.ai</code>
-            <p className="text-gray-600 text-sm mt-2">Direct access to NeuroSwitch routing</p>
-          </div>
+      {/* Interactive API Explorer */}
+      <section className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-lg p-8 border border-purple-200">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Interactive API Explorer</h2>
+          <p className="text-gray-600 mb-6">
+            Test API endpoints interactively with our Swagger documentation
+          </p>
+          <Link 
+            href="https://api.mcp4.ai/api-docs" 
+            target="_blank"
+            className="inline-flex items-center bg-purple-600 hover:bg-purple-700 text-white px-8 py-3 rounded-lg font-medium transition-colors"
+          >
+            Open Swagger UI
+            <ExternalLink className="ml-2 w-4 h-4" />
+          </Link>
         </div>
       </section>
 
-      {/* Authentication */}
-      <section className="bg-white rounded-lg p-8 shadow-sm border border-gray-200">
-        <h2 className="text-2xl font-bold text-gray-900 mb-6">Authentication</h2>
-        
-        <p className="text-gray-600 mb-6">
-          The Fusion AI API uses API key authentication. Include your API key in the Authorization header of all requests.
-        </p>
+      {/* API Sections Grid */}
+      <section>
+        <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">API Documentation Sections</h2>
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {apiSections.map((section, index) => (
+            <Link 
+              key={index}
+              href={section.href} 
+              className={`border rounded-lg p-6 transition-all duration-200 hover:shadow-md ${getColorClasses(section.color)}`}
+            >
+              <div className={`w-12 h-12 rounded-lg flex items-center justify-center mb-4 ${section.color === 'green' ? 'bg-green-100' : section.color === 'blue' ? 'bg-blue-100' : section.color === 'red' ? 'bg-red-100' : 'bg-yellow-100'}`}>
+                {React.cloneElement(section.icon, { 
+                  className: `w-6 h-6 ${section.color === 'green' ? 'text-green-600' : section.color === 'blue' ? 'text-blue-600' : section.color === 'red' ? 'text-red-600' : 'text-yellow-600'}` 
+                })}
+              </div>
+              <h3 className="font-semibold mb-2">{section.title}</h3>
+              <p className="text-sm opacity-75">{section.description}</p>
+            </Link>
+          ))}
+        </div>
+      </section>
 
-        <div className="space-y-6">
+      {/* Quick Start */}
+      <section className="bg-white rounded-lg p-8 shadow-sm border border-gray-200">
+        <h2 className="text-2xl font-bold text-gray-900 mb-6">Quick Start</h2>
+        
+        <div className="grid lg:grid-cols-2 gap-8">
           <div>
-            <h3 className="font-semibold text-gray-900 mb-3">Bearer Token Format</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Base URL</h3>
+            <div className="bg-gray-50 rounded-lg p-4 mb-4">
+              <code className="text-blue-600 font-mono text-sm">https://api.mcp4.ai</code>
+            </div>
+            
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Authentication</h3>
             <div className="bg-gray-900 rounded-lg p-4">
               <pre className="text-green-400 text-sm">
-{`Authorization: Bearer sk-fusion-your-api-key-here`}
+{`Authorization: Bearer sk-fusion-your-api-key`}
               </pre>
             </div>
           </div>
 
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <div className="flex items-start">
-              <Key className="w-5 h-5 text-blue-600 mr-3 mt-0.5" />
-              <div>
-                <h3 className="font-semibold text-blue-900 mb-2">API Key Format</h3>
-                <p className="text-blue-800 text-sm">
-                  All Fusion AI API keys start with <code className="bg-blue-100 px-2 py-1 rounded">sk-fusion-</code> followed by a 56-character string.
-                </p>
-              </div>
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Example Request</h3>
+            <div className="bg-gray-900 rounded-lg p-4">
+              <pre className="text-green-400 text-sm overflow-x-auto">
+{`curl -X POST https://api.mcp4.ai/chat \\
+  -H "Authorization: Bearer sk-fusion-..." \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "prompt": "Hello, world!",
+    "provider": "neuroswitch"
+  }'`}
+              </pre>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Rate Limits */}
-      <section className="bg-white rounded-lg p-8 shadow-sm border border-gray-200">
-        <h2 className="text-2xl font-bold text-gray-900 mb-6">Rate Limits</h2>
-        
-        <div className="grid md:grid-cols-2 gap-6">
-          <div>
-            <h3 className="font-semibold text-gray-900 mb-3">Request Limits</h3>
-            <div className="space-y-3">
-              <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                <span className="text-gray-600">Free Tier</span>
-                <span className="font-medium">1,000 requests/hour</span>
-              </div>
-              <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                <span className="text-gray-600">Pro Tier</span>
-                <span className="font-medium">10,000 requests/hour</span>
-              </div>
-              <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                <span className="text-gray-600">Enterprise</span>
-                <span className="font-medium">Custom limits</span>
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <h3 className="font-semibold text-gray-900 mb-3">Rate Limit Headers</h3>
-            <div className="bg-gray-50 rounded-lg p-4">
-              <pre className="text-sm text-gray-700">
-{`X-RateLimit-Limit: 1000
-X-RateLimit-Remaining: 999
-X-RateLimit-Reset: 1609459200`}
-              </pre>
-            </div>
-            <p className="text-gray-600 text-sm mt-2">
-              Check these headers to monitor your usage
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* Core Endpoints */}
+      {/* Core Endpoints Overview */}
       <section className="bg-white rounded-lg p-8 shadow-sm border border-gray-200">
         <h2 className="text-2xl font-bold text-gray-900 mb-6">Core Endpoints</h2>
         
         <div className="space-y-6">
-          {/* Chat Completion */}
           <div className="border border-gray-200 rounded-lg p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900">Chat Completion</h3>
               <div className="flex items-center space-x-2">
-                <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-medium">POST</span>
-                <code className="text-sm text-gray-600">/chat</code>
+                <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs font-medium">POST</span>
+                <code className="text-sm text-gray-600 bg-gray-100 px-2 py-1 rounded">/chat</code>
               </div>
             </div>
             
             <p className="text-gray-600 mb-4">
-              Send a chat message and receive an AI response. Supports NeuroSwitch routing and direct provider targeting.
+              Send messages to AI models with intelligent routing, streaming support, and multimedia processing.
             </p>
 
-            <div className="bg-gray-900 rounded-lg p-4">
-              <pre className="text-green-400 text-sm overflow-x-auto">
-{`curl -X POST https://api.mcp4.ai/chat \\
-  -H "Authorization: Bearer sk-fusion-..." \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "prompt": "Explain quantum computing",
-    "provider": "neuroswitch",
-    "temperature": 0.7,
-    "max_tokens": 500
-  }'`}
-              </pre>
-            </div>
-
-            <div className="mt-4">
-              <Link href="/docs/api/endpoints" className="text-blue-600 hover:text-blue-700 font-medium text-sm">
-                View full endpoint documentation →
-              </Link>
+            <div className="flex flex-wrap gap-2">
+              <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded text-xs">NeuroSwitch Routing</span>
+              <span className="bg-purple-50 text-purple-700 px-2 py-1 rounded text-xs">Streaming</span>
+              <span className="bg-green-50 text-green-700 px-2 py-1 rounded text-xs">Function Calling</span>
+              <span className="bg-orange-50 text-orange-700 px-2 py-1 rounded text-xs">File Upload</span>
             </div>
           </div>
 
-          {/* Models */}
           <div className="border border-gray-200 rounded-lg p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900">List Models</h3>
               <div className="flex items-center space-x-2">
-                <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-medium">GET</span>
-                <code className="text-sm text-gray-600">/models</code>
+                <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs font-medium">GET</span>
+                <code className="text-sm text-gray-600 bg-gray-100 px-2 py-1 rounded">/models</code>
               </div>
             </div>
             
             <p className="text-gray-600 mb-4">
-              Get a list of all available AI models and their capabilities.
+              Retrieve available AI models, their capabilities, and pricing information.
             </p>
 
-            <div className="bg-gray-900 rounded-lg p-4">
-              <pre className="text-green-400 text-sm overflow-x-auto">
-{`curl -H "Authorization: Bearer sk-fusion-..." \\
-  https://api.mcp4.ai/models`}
-              </pre>
+            <div className="flex flex-wrap gap-2">
+              <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded text-xs">Model Metadata</span>
+              <span className="bg-green-50 text-green-700 px-2 py-1 rounded text-xs">Capabilities</span>
+              <span className="bg-yellow-50 text-yellow-700 px-2 py-1 rounded text-xs">Pricing Info</span>
             </div>
           </div>
 
-          {/* Credits */}
           <div className="border border-gray-200 rounded-lg p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Check Credits</h3>
+              <h3 className="text-lg font-semibold text-gray-900">Account Status</h3>
               <div className="flex items-center space-x-2">
-                <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-medium">GET</span>
-                <code className="text-sm text-gray-600">/credits</code>
+                <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs font-medium">GET</span>
+                <code className="text-sm text-gray-600 bg-gray-100 px-2 py-1 rounded">/account</code>
               </div>
             </div>
             
             <p className="text-gray-600 mb-4">
-              Check your remaining credit balance and usage statistics.
+              Check your account balance, usage statistics, and plan details.
             </p>
 
-            <div className="bg-gray-900 rounded-lg p-4">
-              <pre className="text-green-400 text-sm overflow-x-auto">
-{`curl -H "Authorization: Bearer sk-fusion-..." \\
-  https://api.mcp4.ai/credits`}
-              </pre>
+            <div className="flex flex-wrap gap-2">
+              <span className="bg-green-50 text-green-700 px-2 py-1 rounded text-xs">Balance</span>
+              <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded text-xs">Usage Stats</span>
+              <span className="bg-purple-50 text-purple-700 px-2 py-1 rounded text-xs">Plan Info</span>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Response Format */}
-      <section className="bg-white rounded-lg p-8 shadow-sm border border-gray-200">
-        <h2 className="text-2xl font-bold text-gray-900 mb-6">Response Format</h2>
+      {/* SDKs and Libraries */}
+      <section className="bg-gradient-to-br from-gray-50 to-blue-50 rounded-lg p-8 border border-gray-200">
+        <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">SDKs & Libraries</h2>
         
-        <p className="text-gray-600 mb-6">
-          All API responses follow a consistent JSON format with metadata about the request and provider used.
-        </p>
-
-        <div className="space-y-6">
-          <div>
-            <h3 className="font-semibold text-gray-900 mb-3">Successful Response</h3>
-            <div className="bg-gray-50 rounded-lg p-4">
-              <pre className="text-sm text-gray-700 overflow-x-auto">
-{`{
-  "prompt": "Explain quantum computing",
-  "response": {
-    "text": "Quantum computing is a revolutionary computing paradigm..."
-  },
-  "provider": "openai",
-  "model": "gpt-4",
-  "tokens": {
-    "total_tokens": 156,
-    "input_tokens": 12,
-    "output_tokens": 144
-  },
-  "timestamp": "2024-01-01T12:00:00.000Z",
-  "routing_decision": {
-    "reason": "Optimal for general knowledge questions",
-    "confidence": 0.92
-  }
-}`}
-              </pre>
+        <div className="grid md:grid-cols-3 gap-6">
+          <div className="bg-white rounded-lg p-6 border border-gray-200">
+            <h3 className="font-semibold text-gray-900 mb-3">Node.js / JavaScript</h3>
+            <div className="bg-gray-900 rounded p-3 mb-3">
+              <code className="text-green-400 text-sm">npm install fusion-ai-sdk</code>
             </div>
+            <p className="text-gray-600 text-sm">Official SDK with TypeScript support</p>
           </div>
 
-          <div>
-            <h3 className="font-semibold text-gray-900 mb-3">Error Response</h3>
-            <div className="bg-red-50 rounded-lg p-4">
-              <pre className="text-sm text-red-700 overflow-x-auto">
-{`{
-  "error": "invalid_request",
-  "message": "The prompt parameter is required",
-  "code": 400,
-  "timestamp": "2024-01-01T12:00:00.000Z"
-}`}
-              </pre>
+          <div className="bg-white rounded-lg p-6 border border-gray-200">
+            <h3 className="font-semibold text-gray-900 mb-3">Python</h3>
+            <div className="bg-gray-900 rounded p-3 mb-3">
+              <code className="text-green-400 text-sm">pip install fusion-ai</code>
             </div>
+            <p className="text-gray-600 text-sm">Python client with async support</p>
+          </div>
+
+          <div className="bg-white rounded-lg p-6 border border-gray-200">
+            <h3 className="font-semibold text-gray-900 mb-3">OpenAI Compatible</h3>
+            <div className="bg-gray-900 rounded p-3 mb-3">
+              <code className="text-green-400 text-sm">base_url="api.mcp4.ai"</code>
+            </div>
+            <p className="text-gray-600 text-sm">Use existing OpenAI SDKs</p>
           </div>
         </div>
       </section>
 
-      {/* Streaming */}
-      <section className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-lg p-8">
-        <div className="flex items-center mb-4">
-          <Zap className="w-6 h-6 text-purple-600 mr-3" />
-          <h2 className="text-2xl font-bold text-gray-900">Streaming Support</h2>
-        </div>
-        
+      {/* Next Steps */}
+      <section className="bg-white rounded-lg p-8 shadow-sm border border-gray-200 text-center">
+        <h2 className="text-2xl font-bold text-gray-900 mb-4">Ready to Get Started?</h2>
         <p className="text-gray-600 mb-6">
-          Get real-time responses as they're generated by setting <code className="bg-white px-2 py-1 rounded">stream: true</code> in your request.
+          Explore our comprehensive API documentation and start building with Fusion AI today.
         </p>
-
-        <div className="bg-gray-900 rounded-lg p-4">
-          <pre className="text-green-400 text-sm overflow-x-auto">
-{`curl -X POST https://api.mcp4.ai/chat \\
-  -H "Authorization: Bearer sk-fusion-..." \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "prompt": "Write a story",
-    "provider": "neuroswitch",
-    "stream": true
-  }'`}
-          </pre>
-        </div>
-
-        <div className="mt-4">
-          <Link href="/docs/features/streaming" className="text-purple-600 hover:text-purple-700 font-medium">
-            Learn more about streaming →
-          </Link>
-        </div>
-      </section>
-
-      {/* SDK Support */}
-      <section className="bg-white rounded-lg p-8 shadow-sm border border-gray-200">
-        <h2 className="text-2xl font-bold text-gray-900 mb-6">SDKs and Libraries</h2>
         
-        <p className="text-gray-600 mb-6">
-          Use our official SDKs to integrate Fusion AI into your applications with just a few lines of code.
-        </p>
-
-        <div className="grid md:grid-cols-2 gap-6">
-          <div className="space-y-4">
-            <h3 className="font-semibold text-gray-900">Python SDK</h3>
-            <div className="bg-gray-900 rounded-lg p-4">
-              <pre className="text-green-400 text-sm">
-{`pip install fusion-ai
-
-from fusion_ai import FusionAI
-client = FusionAI("sk-fusion-...")
-response = client.chat("Hello world!")`}
-              </pre>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <h3 className="font-semibold text-gray-900">JavaScript SDK</h3>
-            <div className="bg-gray-900 rounded-lg p-4">
-              <pre className="text-green-400 text-sm">
-{`npm install @fusion-ai/sdk
-
-import FusionAI from '@fusion-ai/sdk';
-const client = new FusionAI('sk-fusion-...');
-const response = await client.chat('Hello world!');`}
-              </pre>
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-6">
-          <Link href="/docs/quickstart/sdks" className="text-blue-600 hover:text-blue-700 font-medium">
-            View all SDKs and examples →
-          </Link>
-        </div>
-      </section>
-
-      {/* Interactive API Explorer */}
-      <section className="bg-gray-50 rounded-lg p-8">
-        <h2 className="text-2xl font-bold text-gray-900 mb-6">Interactive API Explorer</h2>
-        
-        <p className="text-gray-600 mb-6">
-          Want to test the API directly? Use our interactive Swagger documentation.
-        </p>
-
-        <div className="flex flex-col sm:flex-row gap-4">
-          <a 
-            href="https://neuro.mcp4.ai/api-docs" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center justify-center"
-          >
-            <Terminal className="w-4 h-4 mr-2" />
-            Open Swagger UI
-          </a>
-          
+        <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <Link 
             href="/docs/quickstart/first-call" 
-            className="border border-gray-300 hover:border-gray-400 text-gray-700 px-6 py-3 rounded-lg font-medium transition-colors flex items-center justify-center"
+            className="bg-purple-600 hover:bg-purple-700 text-white px-8 py-3 rounded-lg font-medium transition-colors flex items-center justify-center"
           >
-            Try cURL Examples
+            <Terminal className="mr-2 w-4 h-4" />
+            Make Your First Call
+          </Link>
+          <Link 
+            href="/docs/api/auth" 
+            className="border border-gray-300 hover:border-gray-400 text-gray-700 px-8 py-3 rounded-lg font-medium transition-colors flex items-center justify-center"
+          >
+            <Key className="mr-2 w-4 h-4" />
+            Authentication Guide
           </Link>
         </div>
       </section>

@@ -10,6 +10,9 @@ const inter = Inter({ subsets: ["latin"] })
 export const metadata: Metadata = {
   title: 'Fusion AI',
   description: 'AI innovation studio',
+  verification: {
+    google: 'zKA7mAZgZzIIosUZHND3Ze8AS_k0KrTE0tnbJf0AD0s',
+  },
   icons: {
     icon: [
       {
