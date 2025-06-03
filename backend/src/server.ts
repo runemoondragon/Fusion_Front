@@ -188,7 +188,7 @@ app.use('/api/models', modelsRouter);
 // Swagger API Documentation (Development only)
 const shouldEnableSwagger = process.env.NODE_ENV !== 'production' || process.env.ENABLE_SWAGGER === 'true';
 
-if (shouldEnableSwagger) {
+if (shouldEnableSwagger && specs && swaggerUi) {
   // Serve the OpenAPI JSON spec at /swagger.json
   app.get('/swagger.json', (req, res) => {
     res.setHeader('Content-Type', 'application/json');
@@ -214,6 +214,8 @@ if (shouldEnableSwagger) {
   const swaggerUrl = process.env.BACKEND_URL || 'http://localhost:5000';
   console.log('📚 Swagger UI available at:', `${swaggerUrl}/api-docs`);
   console.log('📄 OpenAPI JSON spec available at:', `${swaggerUrl}/swagger.json`);
+} else if (shouldEnableSwagger) {
+  console.log('⚠️  Swagger packages not available, documentation disabled');
 }
 
 // Mount admin routes

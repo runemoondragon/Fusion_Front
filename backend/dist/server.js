@@ -150,7 +150,7 @@ app.use('/webhooks', btcpay_1.default); // For /webhooks/btcpay (defined inside 
 app.use('/api/models', models_1.default);
 // Swagger API Documentation (Development only)
 const shouldEnableSwagger = process.env.NODE_ENV !== 'production' || process.env.ENABLE_SWAGGER === 'true';
-if (shouldEnableSwagger) {
+if (shouldEnableSwagger && swagger_1.specs && swagger_1.swaggerUi) {
     // Serve the OpenAPI JSON spec at /swagger.json
     app.get('/swagger.json', (req, res) => {
         res.setHeader('Content-Type', 'application/json');
@@ -174,6 +174,9 @@ if (shouldEnableSwagger) {
     const swaggerUrl = process.env.BACKEND_URL || 'http://localhost:5000';
     console.log('📚 Swagger UI available at:', `${swaggerUrl}/api-docs`);
     console.log('📄 OpenAPI JSON spec available at:', `${swaggerUrl}/swagger.json`);
+}
+else if (shouldEnableSwagger) {
+    console.log('⚠️  Swagger packages not available, documentation disabled');
 }
 // Mount admin routes
 app.use('/api/admin', auth_1.verifyToken, adminAuth_1.requireAdminRole, index_1.default);
