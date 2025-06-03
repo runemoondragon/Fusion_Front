@@ -9,9 +9,13 @@ const passport_1 = __importDefault(require("passport"));
 const express_session_1 = __importDefault(require("express-session"));
 const cors_1 = __importDefault(require("cors"));
 const dotenv_1 = __importDefault(require("dotenv"));
-const passport_google_oauth20_1 = require("passport-google-oauth20");
-const passport_microsoft_1 = require("passport-microsoft");
-const passport_github2_1 = require("passport-github2");
+// Fix passport imports for production deployment
+const { Strategy: GoogleStrategy } = require('passport-google-oauth20');
+const { Strategy: MicrosoftStrategy } = require('passport-microsoft');
+const { Strategy: AppleStrategy } = require('passport-apple');
+const { Strategy: GitHubStrategy } = require('passport-github2');
+const { Strategy: LinkedInStrategy } = require('passport-linkedin-oauth2');
+const { Strategy: FacebookStrategy } = require('passport-facebook');
 const bcrypt_1 = __importDefault(require("bcrypt"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const crypto_1 = __importDefault(require("crypto"));
@@ -201,7 +205,7 @@ passport_1.default.deserializeUser(async (id, done) => {
 });
 // Configure OAuth Strategies
 if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
-    passport_1.default.use(new passport_google_oauth20_1.Strategy({
+    passport_1.default.use(new GoogleStrategy({
         clientID: process.env.GOOGLE_CLIENT_ID,
         clientSecret: process.env.GOOGLE_CLIENT_SECRET,
         callbackURL: '/auth/google/callback'
@@ -227,7 +231,7 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
 // Setup other OAuth providers with similar pattern
 // Microsoft
 if (process.env.MICROSOFT_CLIENT_ID && process.env.MICROSOFT_CLIENT_SECRET) {
-    passport_1.default.use(new passport_microsoft_1.Strategy({
+    passport_1.default.use(new MicrosoftStrategy({
         clientID: process.env.MICROSOFT_CLIENT_ID,
         clientSecret: process.env.MICROSOFT_CLIENT_SECRET,
         callbackURL: '/auth/microsoft/callback',
@@ -284,7 +288,7 @@ if (process.env.MICROSOFT_CLIENT_ID && process.env.MICROSOFT_CLIENT_SECRET) {
 // }
 // GitHub
 if (process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET) {
-    passport_1.default.use(new passport_github2_1.Strategy({
+    passport_1.default.use(new GitHubStrategy({
         clientID: process.env.GITHUB_CLIENT_ID,
         clientSecret: process.env.GITHUB_CLIENT_SECRET,
         callbackURL: '/auth/github/callback'

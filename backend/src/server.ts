@@ -3,12 +3,13 @@ import passport from 'passport';
 import session from 'express-session';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { Strategy as GoogleStrategy, Profile as GoogleProfile } from 'passport-google-oauth20';
-import { Strategy as MicrosoftStrategy } from 'passport-microsoft';
-import { Strategy as AppleStrategy } from 'passport-apple';
-import { Strategy as GitHubStrategy } from 'passport-github2';
-import { Strategy as LinkedInStrategy } from 'passport-linkedin-oauth2';
-import { Strategy as FacebookStrategy } from 'passport-facebook';
+// Fix passport imports for production deployment
+const { Strategy: GoogleStrategy } = require('passport-google-oauth20');
+const { Strategy: MicrosoftStrategy } = require('passport-microsoft');
+const { Strategy: AppleStrategy } = require('passport-apple');
+const { Strategy: GitHubStrategy } = require('passport-github2');
+const { Strategy: LinkedInStrategy } = require('passport-linkedin-oauth2');
+const { Strategy: FacebookStrategy } = require('passport-facebook');
 import { Pool, PoolClient, QueryResult } from 'pg';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
@@ -254,7 +255,7 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
     clientID: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
     callbackURL: '/auth/google/callback'
-  }, async (accessToken, refreshToken, profile, done) => {
+  }, async (accessToken: string, refreshToken: string, profile: any, done: (error: any, user?: any) => void) => {
     try {
       // Check if user exists
       const existingUser = await pool.query(
