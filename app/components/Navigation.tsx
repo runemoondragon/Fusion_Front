@@ -120,6 +120,7 @@ export default function Navigation() {
               <Link href="/chat" className="text-sm font-medium text-neutral-600 hover:text-orange-600">Chat</Link>
               <Link href="/models" className="text-sm font-medium text-neutral-600 hover:text-orange-600">Models</Link>
               <Link href="/rankings" className="text-sm font-medium text-neutral-600 hover:text-orange-600">Rankings</Link>
+              <Link href="/docs" className="text-sm font-medium text-neutral-600 hover:text-orange-600">Docs</Link>
           </div>
           
           {authStatus ? (
