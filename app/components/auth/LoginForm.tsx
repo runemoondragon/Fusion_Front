@@ -121,6 +121,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onSwitchToSignup, retu
   const oauthProviders = [
     { name: 'Google', logoSrc: '/google-logo.aacb4c7fe7b2200fd0f19101d3e5b6b1.svg', onClick: () => handleOAuthLogin('google') },
     { name: 'Microsoft', logoSrc: '/microsoft-logo.232bed9486815048a01cb94c9e7cd25e.svg', onClick: () => handleOAuthLogin('microsoft') },
+    { name: 'GitHub', logoSrc: '/github-logo.svg', onClick: () => handleOAuthLogin('github') },
     { name: 'Apple', logoSrc: '/apple-logo.361cc8941957f07da1580885f7440af7.svg', onClick: () => handleOAuthLogin('apple') },
     // Add other providers back if needed
   ]

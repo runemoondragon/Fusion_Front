@@ -284,4 +284,190 @@ router.delete('/:chatId', verifyToken, async (req: Request, res: Response) => {
   }
 });
 
+// POST /api/chats/messages/:messageId/react - React to a message (like/dislike)
+router.post('/messages/:messageId/react', verifyToken, async (req: Request, res: Response) => {
+  const userId = (req.user as { id: number }).id;
+  const { messageId } = req.params;
+  const { reaction } = req.body;
+
+  if (!userId) {
+    return res.status(403).json({ error: 'User ID not found in token' });
+  }
+  
+  if (!messageId || isNaN(parseInt(messageId))) {
+    return res.status(400).json({ error: 'Invalid message ID format.' });
+  }
+
+  if (!reaction || !['like', 'dislike'].includes(reaction)) {
+    return res.status(400).json({ error: 'Reaction must be either "like" or "dislike".' });
+  }
+
+  const numericMessageId = parseInt(messageId);
+
+  try {
+    // Check if message exists and user has access to it (through chat ownership)
+    const messageCheck = await pool.query(`
+      SELECT m.id, c.user_id 
+      FROM messages m 
+      JOIN chats c ON m.chat_id = c.id 
+      WHERE m.id = $1
+    `, [numericMessageId]);
+
+    if (messageCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Message not found.' });
+    }
+
+    if (messageCheck.rows[0].user_id !== userId) {
+      return res.status(403).json({ error: 'You can only react to messages in your own chats.' });
+    }
+
+    // Upsert the reaction (update if exists, insert if doesn't)
+    const upsertQuery = `
+      INSERT INTO message_reactions (message_id, user_id, reaction_type) 
+      VALUES ($1, $2, $3)
+      ON CONFLICT (message_id, user_id) 
+      DO UPDATE SET reaction_type = EXCLUDED.reaction_type, created_at = CURRENT_TIMESTAMP
+      RETURNING *
+    `;
+    
+    const result = await pool.query(upsertQuery, [numericMessageId, userId, reaction]);
+    
+    // Get updated reaction counts
+    const countsQuery = `
+      SELECT 
+        reaction_type,
+        COUNT(*) as count
+      FROM message_reactions 
+      WHERE message_id = $1 
+      GROUP BY reaction_type
+    `;
+    const countsResult = await pool.query(countsQuery, [numericMessageId]);
+    
+    const counts = countsResult.rows.reduce((acc, row) => {
+      acc[row.reaction_type] = parseInt(row.count);
+      return acc;
+    }, { like: 0, dislike: 0 });
+
+    res.json({
+      success: true,
+      reaction: result.rows[0],
+      counts,
+      userReaction: reaction
+    });
+
+  } catch (error) {
+    console.error('Error adding message reaction:', error);
+    res.status(500).json({ error: 'Failed to add reaction' });
+  }
+});
+
+// DELETE /api/chats/messages/:messageId/react - Remove reaction from a message
+router.delete('/messages/:messageId/react', verifyToken, async (req: Request, res: Response) => {
+  const userId = (req.user as { id: number }).id;
+  const { messageId } = req.params;
+
+  if (!userId) {
+    return res.status(403).json({ error: 'User ID not found in token' });
+  }
+  
+  if (!messageId || isNaN(parseInt(messageId))) {
+    return res.status(400).json({ error: 'Invalid message ID format.' });
+  }
+
+  const numericMessageId = parseInt(messageId);
+
+  try {
+    const deleteQuery = `
+      DELETE FROM message_reactions 
+      WHERE message_id = $1 AND user_id = $2
+      RETURNING *
+    `;
+    
+    const result = await pool.query(deleteQuery, [numericMessageId, userId]);
+    
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'No reaction found to remove.' });
+    }
+
+    // Get updated reaction counts
+    const countsQuery = `
+      SELECT 
+        reaction_type,
+        COUNT(*) as count
+      FROM message_reactions 
+      WHERE message_id = $1 
+      GROUP BY reaction_type
+    `;
+    const countsResult = await pool.query(countsQuery, [numericMessageId]);
+    
+    const counts = countsResult.rows.reduce((acc, row) => {
+      acc[row.reaction_type] = parseInt(row.count);
+      return acc;
+    }, { like: 0, dislike: 0 });
+
+    res.json({
+      success: true,
+      counts,
+      userReaction: null
+    });
+
+  } catch (error) {
+    console.error('Error removing message reaction:', error);
+    res.status(500).json({ error: 'Failed to remove reaction' });
+  }
+});
+
+// GET /api/chats/messages/:messageId/reactions - Get reaction counts and user's reaction
+router.get('/messages/:messageId/reactions', verifyToken, async (req: Request, res: Response) => {
+  const userId = (req.user as { id: number }).id;
+  const { messageId } = req.params;
+
+  if (!userId) {
+    return res.status(403).json({ error: 'User ID not found in token' });
+  }
+  
+  if (!messageId || isNaN(parseInt(messageId))) {
+    return res.status(400).json({ error: 'Invalid message ID format.' });
+  }
+
+  const numericMessageId = parseInt(messageId);
+
+  try {
+    // Get reaction counts
+    const countsQuery = `
+      SELECT 
+        reaction_type,
+        COUNT(*) as count
+      FROM message_reactions 
+      WHERE message_id = $1 
+      GROUP BY reaction_type
+    `;
+    const countsResult = await pool.query(countsQuery, [numericMessageId]);
+    
+    const counts = countsResult.rows.reduce((acc, row) => {
+      acc[row.reaction_type] = parseInt(row.count);
+      return acc;
+    }, { like: 0, dislike: 0 });
+
+    // Get user's reaction
+    const userReactionQuery = `
+      SELECT reaction_type 
+      FROM message_reactions 
+      WHERE message_id = $1 AND user_id = $2
+    `;
+    const userReactionResult = await pool.query(userReactionQuery, [numericMessageId, userId]);
+    
+    const userReaction = userReactionResult.rows.length > 0 ? userReactionResult.rows[0].reaction_type : null;
+
+    res.json({
+      counts,
+      userReaction
+    });
+
+  } catch (error) {
+    console.error('Error fetching message reactions:', error);
+    res.status(500).json({ error: 'Failed to fetch reactions' });
+  }
+});
+
 export default router; 

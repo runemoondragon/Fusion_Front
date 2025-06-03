@@ -15,7 +15,7 @@ import typescript from 'react-syntax-highlighter/dist/esm/languages/prism/typesc
 import markdown from 'react-syntax-highlighter/dist/esm/languages/prism/markdown';
 import { Element } from 'hast';
 import { useUser } from '../../contexts/UserContext'; // Import useUser
-import { FileText, Lightbulb, Code, Eye } from 'lucide-react';
+import { FileText, Lightbulb, Code, Eye, Copy, ThumbsUp, ThumbsDown, Check } from 'lucide-react';
 // import type { CodeProps } from 'react-markdown/lib/ast-to-react'; // Removed this due to import error
 
 // Register languages
@@ -35,6 +35,18 @@ SyntaxHighlighter.registerLanguage('markdown', markdown);
 SyntaxHighlighter.registerLanguage('md', markdown);
 
 // Define types for better type checking
+interface MessageReactions {
+  like: number;
+  dislike: number;
+}
+
+interface MessageReactionResponse {
+  success: boolean;
+  counts: MessageReactions;
+  userReaction: 'like' | 'dislike' | null;
+  reaction?: any; // For the POST response
+}
+
 interface Message {
   id?: number | string; // Allow string for temporary IDs
   role: 'user' | 'assistant';
@@ -42,6 +54,8 @@ interface Message {
   provider?: string;
   isError?: boolean; // Add optional isError for styling error messages
   isLoading?: boolean; // Added for temporary loading state
+  reactions?: MessageReactions; // Add reaction counts
+  userReaction?: 'like' | 'dislike' | null; // User's current reaction
   // Consider adding timestamp if needed for local display sorting before saving
 }
 
@@ -150,6 +164,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [isScrolledUp, setIsScrolledUp] = useState(false);
+  const [copiedMessageId, setCopiedMessageId] = useState<number | string | null>(null);
 
   const hasMessages = messages.length > 0;
 
@@ -182,6 +197,31 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         // Map FetchedMessage to Message if necessary, though structure might be compatible
         // For now, assuming FetchedMessage is compatible with local Message type
         setMessages(chatData.messages);
+        
+        // Load reaction data for all messages with IDs
+        const messagesWithIds = chatData.messages.filter(msg => msg.id && typeof msg.id === 'number');
+        if (messagesWithIds.length > 0) {
+          const messagesWithReactions = await Promise.all(
+            messagesWithIds.map(async (msg) => {
+              try {
+                const reactionResponse = await apiClient.get<{ counts: MessageReactions; userReaction: 'like' | 'dislike' | null }>(`/chats/messages/${msg.id}/reactions`);
+                return {
+                  ...msg,
+                  reactions: reactionResponse.data.counts,
+                  userReaction: reactionResponse.data.userReaction
+                };
+              } catch (error) {
+                console.error(`Failed to load reactions for message ${msg.id}:`, error);
+                return {
+                  ...msg,
+                  reactions: { like: 0, dislike: 0 },
+                  userReaction: null
+                };
+              }
+            })
+          );
+          setMessages(messagesWithReactions);
+        }
         // When loading a chat, update the selectedModel in the parent (ChatLayout)
         if (chatData.ui_selected_provider) {
           setSelectedModel(chatData.ui_selected_provider); 
@@ -527,6 +567,79 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     }
   };
 
+  // Message action handlers
+  const handleCopyMessage = async (content: string, messageId: number | string) => {
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopiedMessageId(messageId);
+      // Reset copy feedback after 2 seconds
+      setTimeout(() => {
+        setCopiedMessageId(null);
+      }, 2000);
+    } catch (err) {
+      console.error('Failed to copy message:', err);
+    }
+  };
+
+  const handleReactToMessage = async (messageId: number | string, reaction: 'like' | 'dislike') => {
+    if (!user) {
+      promptForLogin();
+      return;
+    }
+
+    if (typeof messageId === 'string') {
+      // Can't react to temporary messages
+      return;
+    }
+
+    try {
+      const response = await apiClient.post<MessageReactionResponse>(`/chats/messages/${messageId}/react`, {
+        reaction
+      });
+
+      const { counts, userReaction } = response.data;
+
+      // Update the message in state
+      setMessages(prevMessages =>
+        prevMessages.map(msg =>
+          msg.id === messageId
+            ? { ...msg, reactions: counts, userReaction }
+            : msg
+        )
+      );
+    } catch (error) {
+      console.error('Failed to react to message:', error);
+    }
+  };
+
+  const handleRemoveReaction = async (messageId: number | string) => {
+    if (!user) {
+      promptForLogin();
+      return;
+    }
+
+    if (typeof messageId === 'string') {
+      // Can't remove reaction from temporary messages
+      return;
+    }
+
+    try {
+      const response = await apiClient.delete<MessageReactionResponse>(`/chats/messages/${messageId}/react`);
+      const { counts, userReaction } = response.data;
+
+      // Update the message in state
+      setMessages(prevMessages =>
+        prevMessages.map(msg =>
+          msg.id === messageId
+            ? { ...msg, reactions: counts, userReaction }
+            : msg
+        )
+      );
+    } catch (error) {
+      console.error('Failed to remove reaction:', error);
+    }
+  };
+
   // Add scrollToBottom function
   const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
     if (messagesEndRef.current) {
@@ -564,6 +677,73 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       scrollToBottom(initialLoad && messages.length > 1 ? 'auto' : 'smooth');
     }
   }, [messages, isScrolledUp]); // React to messages change and isScrolledUp state
+
+  // Message actions component
+  const MessageActions: React.FC<{ message: Message }> = ({ message }) => {
+    if (message.isLoading || !message.id || typeof message.id === 'string') {
+      return null; // Don't show actions for loading or temporary messages
+    }
+
+    const handleToggleReaction = (reaction: 'like' | 'dislike') => {
+      if (message.userReaction === reaction) {
+        // Remove reaction if clicking the same one
+        handleRemoveReaction(message.id!);
+      } else {
+        // Add or change reaction
+        handleReactToMessage(message.id!, reaction);
+      }
+    };
+
+    return (
+      <div className="flex items-center gap-1 mt-2 pt-2 border-t border-gray-100">
+        {/* Copy Button */}
+        <button
+          onClick={() => handleCopyMessage(message.content, message.id!)}
+          className={`flex items-center gap-1 px-2 py-1 text-xs rounded transition-colors ${
+            copiedMessageId === message.id
+              ? 'text-green-600 bg-green-50'
+              : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+          }`}
+          title={copiedMessageId === message.id ? "Copied!" : "Copy message"}
+        >
+          {copiedMessageId === message.id ? (
+            <Check className="w-3 h-3" />
+          ) : (
+            <Copy className="w-3 h-3" />
+          )}
+          <span>{copiedMessageId === message.id ? "Copied!" : "Copy"}</span>
+        </button>
+
+        {/* Like Button */}
+        <button
+          onClick={() => handleToggleReaction('like')}
+          className={`flex items-center gap-1 px-2 py-1 text-xs rounded transition-colors ${
+            message.userReaction === 'like'
+              ? 'text-green-600 bg-green-50 hover:bg-green-100'
+              : 'text-gray-500 hover:text-green-600 hover:bg-gray-100'
+          }`}
+          title="Like message"
+        >
+          <ThumbsUp className="w-3 h-3" />
+          <span>{message.reactions?.like || 0}</span>
+        </button>
+
+        {/* Dislike Button */}
+        <button
+          onClick={() => handleToggleReaction('dislike')}
+          className={`flex items-center gap-1 px-2 py-1 text-xs rounded transition-colors ${
+            message.userReaction === 'dislike'
+              ? 'text-red-600 bg-red-50 hover:bg-red-100'
+              : 'text-gray-500 hover:text-red-600 hover:bg-gray-100'
+          }`}
+          title="Dislike message"
+        >
+          <ThumbsDown className="w-3 h-3" />
+          <span>{message.reactions?.dislike || 0}</span>
+        </button>
+      </div>
+    );
+  };
 
   const renderMessages = () => (
     messages.map((msg, index) => {
@@ -686,6 +866,9 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                   </ReactMarkdown>
                 </div>
                 )}
+              
+              {/* Add message actions for user messages */}
+              <MessageActions message={msg} />
               </div>
             <div className="flex-shrink-0 w-8 h-8 md:w-10 md:h-10 rounded-full bg-gray-300 flex items-center justify-center text-gray-700 text-sm font-semibold">
               You
@@ -794,8 +977,11 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                   >
                     {currentMessageContent}
                   </ReactMarkdown>
-              </div>
-            )}
+                </div>
+              )}
+              
+              {/* Add message actions for assistant messages */}
+              <MessageActions message={msg} />
             </div>
           </div>
         );

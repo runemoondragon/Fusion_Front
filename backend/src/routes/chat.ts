@@ -87,6 +87,134 @@ async function deductCreditsAndLog(userId: number, cost: number, provider: strin
   );
 }
 
+/**
+ * @swagger
+ * /api/chat:
+ *   post:
+ *     summary: Send a chat message to AI providers
+ *     description: |
+ *       Process a chat request through Fusion AI's NeuroSwitch™ technology or directly to specific AI providers.
+ *       
+ *       **NeuroSwitch™ Routing**: When provider is set to "neuroswitch", the system automatically routes your request to the optimal AI provider based on the prompt content, user preferences, and real-time performance metrics.
+ *       
+ *       **BYOAPI Support**: If you have external API keys configured for specific providers, the system will use your keys for direct billing to your provider accounts.
+ *       
+ *       **Credit System**: Requests are charged based on token usage. Users with insufficient credits will receive a 402 Payment Required error.
+ *     tags: [Chat]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/ChatRequest'
+ *           examples:
+ *             neuroswitch_routing:
+ *               summary: NeuroSwitch™ automatic routing
+ *               value:
+ *                 prompt: "Explain quantum computing in simple terms"
+ *                 provider: "neuroswitch"
+ *             specific_provider:
+ *               summary: Target specific provider
+ *               value:
+ *                 prompt: "Write a Python function to calculate fibonacci numbers"
+ *                 provider: "openai"
+ *                 model: "gpt-4"
+ *             with_image:
+ *               summary: Vision model with image
+ *               value:
+ *                 prompt: "What do you see in this image?"
+ *                 provider: "openai"
+ *                 model: "gpt-4-vision-preview"
+ *                 image: "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQ..."
+ *     responses:
+ *       200:
+ *         description: Successful chat response
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ChatResponse'
+ *             example:
+ *               prompt: "Explain quantum computing in simple terms"
+ *               response:
+ *                 text: "Quantum computing is a type of computation that harnesses quantum mechanical phenomena..."
+ *               provider: "openai"
+ *               model: "gpt-4"
+ *               tokens:
+ *                 total_tokens: 150
+ *                 input_tokens: 50
+ *                 output_tokens: 100
+ *               timestamp: "2024-01-01T12:00:00.000Z"
+ *       400:
+ *         description: Bad request - Missing prompt or invalid parameters
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *             examples:
+ *               missing_prompt:
+ *                 summary: Missing prompt
+ *                 value:
+ *                   error: "Prompt is required"
+ *               invalid_provider:
+ *                 summary: Invalid provider
+ *                 value:
+ *                   error: "Invalid provider specified"
+ *       401:
+ *         description: Unauthorized - Invalid or missing token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       402:
+ *         description: Payment required - Insufficient credits
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/Error'
+ *                 - type: object
+ *                   properties:
+ *                     message:
+ *                       type: string
+ *                       description: Detailed payment required message
+ *             examples:
+ *               insufficient_credits:
+ *                 summary: Insufficient credits
+ *                 value:
+ *                   error: "Insufficient credits"
+ *                   message: "You need at least $0.05 in credits to make this request"
+ *               neuroswitch_fee:
+ *                 summary: Insufficient credits for NeuroSwitch fee
+ *                 value:
+ *                   error: "Insufficient Credits for NeuroSwitch Fee"
+ *                   message: "You have exhausted your free NeuroSwitch request allowance and do not have enough credits to cover the fee for this request."
+ *       429:
+ *         description: Rate limit exceeded
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       500:
+ *         description: Internal server error or provider unavailable
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       503:
+ *         description: Service unavailable - All providers failed
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/Error'
+ *                 - type: object
+ *                   properties:
+ *                     fallback_reason:
+ *                       type: string
+ *                       description: Reason why providers failed
+ */
 router.post('/', verifyToken, async (req: Request, res: Response) => {
   const { prompt, provider, model: modelFromRequest, image, mode } = req.body;
   console.log('[API Chat] Received request on /api/chat. Provider:', provider, 'Model:', modelFromRequest, 'Prompt:', prompt ? 'Exists' : 'Missing');

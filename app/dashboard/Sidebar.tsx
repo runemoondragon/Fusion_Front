@@ -12,7 +12,7 @@ const navItems = [
   { name: 'Credits', path: '/dashboard/credits' },
   { name: 'API Keys', path: '/dashboard/api-keys' },
   { name: 'Integrations', path: '/dashboard/provider-keys' },
-  //{ name: 'Provisioning Keys', path: '/dashboard/provisioning' },
+  { name: 'Provisioning Keys', path: '/dashboard/provisioning' },
   //{ name: 'Integrations', path: '/dashboard/integrations' },
   //{ name: 'Privacy', path: '/dashboard/privacy' },
 ]

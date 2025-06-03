@@ -555,7 +555,9 @@ const ChatLayout: React.FC<ChatLayoutProps> = () => {
                 <span
                   id="neuroswitch-status-indicator-header"
                   className={`ml-1 sm:ml-2 text-xs ${neuroStatus === 'green' ? 'text-green-600' : neuroStatus === 'orange' ? 'text-orange-500' : 'text-gray-400'} bg-gray-100 bg-opacity-75 backdrop-blur-sm px-1.5 py-0.5 rounded-full`}
-                  title="NeuroSwitch Status"
+                  title="When a you selects NeuroSwitch, the query is sent to a smart classification layer built on a fine-tuned, zero-shot model. This classifier analyzes the query and routes it to the most capable AI provider for that specific task—whether it's Claude, Gemini, OpenAI, or others.
+
+What makes this powerful is that continuity is preserved across providers. It doesn't matter which AI answers the question—the system maintains context seamlessly. Each model responds as if it's part of one unified intelligence. They don’t even know if they handled the previous message or not. It works like a mini AGI: collaborative, context-aware, and intelligent across boundaries."
                 >
                   ● {neuroStatus === 'green' ? 'Active' : neuroStatus === 'orange' ? 'Fallback' : 'Idle'}
                 </span>

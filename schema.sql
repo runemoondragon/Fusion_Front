@@ -65,6 +65,16 @@ CREATE TABLE messages (
     timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP -- Or 'created_at'
 );
 
+-- Message reactions table (likes/dislikes)
+CREATE TABLE message_reactions (
+    id SERIAL PRIMARY KEY,
+    message_id INTEGER NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    reaction_type VARCHAR(10) NOT NULL CHECK (reaction_type IN ('like', 'dislike')),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (message_id, user_id) -- One reaction per user per message
+);
+
 -- Payments table
 CREATE TABLE payments (
     id SERIAL PRIMARY KEY,
@@ -321,4 +331,8 @@ INSERT INTO app_config (key, value, description) VALUES
 ON CONFLICT (key) DO UPDATE SET 
     value = EXCLUDED.value,
     description = EXCLUDED.description,
-    updated_at = CURRENT_TIMESTAMP; 
+    updated_at = CURRENT_TIMESTAMP;
+
+-- Indexes for message_reactions
+CREATE INDEX IF NOT EXISTS idx_message_reactions_message_id ON message_reactions(message_id);
+CREATE INDEX IF NOT EXISTS idx_message_reactions_user_id ON message_reactions(user_id); 

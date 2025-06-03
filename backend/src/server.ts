@@ -6,6 +6,7 @@ import dotenv from 'dotenv';
 import { Strategy as GoogleStrategy, Profile as GoogleProfile } from 'passport-google-oauth20';
 import { Strategy as MicrosoftStrategy } from 'passport-microsoft';
 import { Strategy as AppleStrategy } from 'passport-apple';
+import { Strategy as GitHubStrategy } from 'passport-github2';
 import { Strategy as LinkedInStrategy } from 'passport-linkedin-oauth2';
 import { Strategy as FacebookStrategy } from 'passport-facebook';
 import { Pool, PoolClient, QueryResult } from 'pg';
@@ -30,6 +31,7 @@ import adminApiRouter from './routes/adminApi/index';
 import { requireAdminRole } from './middleware/adminAuth';
 import { sendVerificationEmail } from './services/emailService';
 import { DbUser } from './types/userTypes';
+import { specs, swaggerUi } from './config/swagger';
 // import provisioningKeyRoutes from './routes/provisioningKeys'; // Commented out
 // import subscriptionRoutes from './routes/subscription';       // Commented out
 // import integrationsRoutes from './routes/integrations';       // Commented out
@@ -182,6 +184,37 @@ app.use('/webhooks', btcpayRoutes); // For /webhooks/btcpay (defined inside btcp
 // Public routes
 app.use('/api/models', modelsRouter);
 
+// Swagger API Documentation (Development only)
+const shouldEnableSwagger = process.env.NODE_ENV !== 'production' || process.env.ENABLE_SWAGGER === 'true';
+
+if (shouldEnableSwagger) {
+  // Serve the OpenAPI JSON spec at /swagger.json
+  app.get('/swagger.json', (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    res.send(specs);
+  });
+
+  // Serve the Swagger UI at /api-docs
+  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs, {
+    explorer: true,
+    customCss: '.swagger-ui .topbar { display: none }',
+    customSiteTitle: 'Fusion AI API Documentation',
+    customfavIcon: '/favicon.ico',
+    swaggerOptions: {
+      persistAuthorization: true, // Keep auth token between page reloads
+      displayRequestDuration: true,
+      docExpansion: 'list', // Show endpoints collapsed by default
+      filter: true, // Enable search filter
+      showExtensions: true,
+      showCommonExtensions: true
+    }
+  }));
+  
+  const swaggerUrl = process.env.BACKEND_URL || 'http://localhost:5000';
+  console.log('📚 Swagger UI available at:', `${swaggerUrl}/api-docs`);
+  console.log('📄 OpenAPI JSON spec available at:', `${swaggerUrl}/swagger.json`);
+}
+
 // Mount admin routes
 app.use('/api/admin', verifyToken, requireAdminRole, adminApiRouter);
 
@@ -235,8 +268,8 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
 
       // Create new user
       const newUserResult = await pool.query(
-        'INSERT INTO users (email, oauth_provider, oauth_id) VALUES ($1, $2, $3) RETURNING *',
-        [profile.emails?.[0]?.value || '', 'google', profile.id]
+        'INSERT INTO users (email, oauth_provider, oauth_id, display_name, is_verified) VALUES ($1, $2, $3, $4, TRUE) RETURNING *',
+        [profile.emails?.[0]?.value || '', 'google', profile.id, profile.displayName || profile.name?.givenName || 'Google User']
       );
       const newUser = newUserResult.rows[0];
       await setupNewUserDefaults(newUser.id, pool);
@@ -267,8 +300,78 @@ if (process.env.MICROSOFT_CLIENT_ID && process.env.MICROSOFT_CLIENT_SECRET) {
       }
 
       const newUserResult = await pool.query(
-        'INSERT INTO users (email, oauth_provider, oauth_id) VALUES ($1, $2, $3) RETURNING *',
-        [profile.emails?.[0]?.value || '', 'microsoft', profile.id]
+        'INSERT INTO users (email, oauth_provider, oauth_id, display_name, is_verified) VALUES ($1, $2, $3, $4, TRUE) RETURNING *',
+        [profile.emails?.[0]?.value || '', 'microsoft', profile.id, profile.displayName || profile.name?.givenName || 'User']
+      );
+      const newUser = newUserResult.rows[0];
+      await setupNewUserDefaults(newUser.id, pool);
+      return done(null, newUser);
+    } catch (err) {
+      return done(err, false);
+    }
+  }));
+}
+
+// Apple
+// TODO: Configure Apple OAuth - requires specific setup
+// if (process.env.APPLE_CLIENT_ID && process.env.APPLE_TEAM_ID && process.env.APPLE_KEY_ID && process.env.APPLE_PRIVATE_KEY) {
+//   passport.use(new AppleStrategy({
+//     clientID: process.env.APPLE_CLIENT_ID,
+//     teamId: process.env.APPLE_TEAM_ID,
+//     keyId: process.env.APPLE_KEY_ID,
+//     key: process.env.APPLE_PRIVATE_KEY.replace(/\\n/g, '\n'), // Handle newlines in env vars
+//     callbackURL: '/auth/apple/callback',
+//     scope: ['name', 'email']
+//   }, async (_req: any, _accessToken: string, _refreshToken: string, _idToken: any, profile: any, done: (error: any, user?: any) => void) => {
+//     try {
+//       const existingUser = await pool.query(
+//         'SELECT * FROM users WHERE oauth_id = $1 AND oauth_provider = $2',
+//         [profile.id, 'apple']
+//       );
+
+//       if (existingUser.rows.length > 0) {
+//         return done(null, existingUser.rows[0]);
+//       }
+
+//       const email = profile.email || `${profile.id}@privaterelay.appleid.com`;
+//       const displayName = profile.name ? `${profile.name.firstName || ''} ${profile.name.lastName || ''}`.trim() : 'Apple User';
+      
+//       const newUserResult = await pool.query(
+//         'INSERT INTO users (email, oauth_provider, oauth_id, display_name, is_verified) VALUES ($1, $2, $3, $4, TRUE) RETURNING *',
+//         [email, 'apple', profile.id, displayName || 'Apple User']
+//       );
+//       const newUser = newUserResult.rows[0];
+//       await setupNewUserDefaults(newUser.id, pool);
+//       return done(null, newUser);
+//     } catch (err) {
+//       return done(err, false);
+//     }
+//   }));
+// }
+
+// GitHub
+if (process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET) {
+  passport.use(new GitHubStrategy({
+    clientID: process.env.GITHUB_CLIENT_ID,
+    clientSecret: process.env.GITHUB_CLIENT_SECRET,
+    callbackURL: '/auth/github/callback'
+  }, async (_accessToken: string, _refreshToken: string, profile: any, done: (error: any, user?: any) => void) => {
+    try {
+      const existingUser = await pool.query(
+        'SELECT * FROM users WHERE oauth_id = $1 AND oauth_provider = $2',
+        [profile.id, 'github']
+      );
+
+      if (existingUser.rows.length > 0) {
+        return done(null, existingUser.rows[0]);
+      }
+
+      const email = profile.emails?.[0]?.value || `${profile.username}@users.noreply.github.com`;
+      const displayName = profile.displayName || profile.username || 'GitHub User';
+      
+      const newUserResult = await pool.query(
+        'INSERT INTO users (email, oauth_provider, oauth_id, display_name, is_verified) VALUES ($1, $2, $3, $4, TRUE) RETURNING *',
+        [email, 'github', profile.id, displayName]
       );
       const newUser = newUserResult.rows[0];
       await setupNewUserDefaults(newUser.id, pool);
@@ -326,6 +429,48 @@ app.get('/auth/microsoft/callback',
     res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth/callback?token=${token}`);
   }
 );
+
+// GitHub
+app.get('/auth/github', passport.authenticate('github', { scope: ['user:email'] }));
+app.get('/auth/github/callback',
+  passport.authenticate('github', { failureRedirect: '/login' }),
+  (req, res) => {
+    const passportUser = req.user as any;
+    const payload = {
+      id: passportUser.id,
+      email: passportUser.email,
+      name: passportUser.display_name || passportUser.displayName,
+      stripe_customer_id: passportUser.stripe_customer_id
+    };
+    const token = jwt.sign(
+      payload,
+      process.env.JWT_SECRET || 'your-jwt-secret',
+      { expiresIn: '24h' }
+    );
+    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth/callback?token=${token}`);
+  }
+);
+
+// TODO: Add Apple routes when Apple strategy is properly configured
+// app.get('/auth/apple', passport.authenticate('apple'));
+// app.get('/auth/apple/callback',
+//   passport.authenticate('apple', { failureRedirect: '/login' }),
+//   (req, res) => {
+//     const passportUser = req.user as any;
+//     const payload = {
+//       id: passportUser.id,
+//       email: passportUser.email,
+//       name: passportUser.display_name || passportUser.displayName,
+//       stripe_customer_id: passportUser.stripe_customer_id
+//     };
+//     const token = jwt.sign(
+//       payload,
+//       process.env.JWT_SECRET || 'your-jwt-secret',
+//       { expiresIn: '24h' }
+//     );
+//     res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth/callback?token=${token}`);
+//   }
+// );
 
 // Routes for other OAuth providers would be similar
 
