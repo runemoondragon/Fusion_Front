@@ -99,6 +99,8 @@ const SignupForm: React.FC<SignupFormProps> = ({ onSuccess, onSwitchToLogin }) =
 
   return (
     <div className="w-full space-y-6">
+
+      {/* OAuth sign-in temporarily disabled */}
       {/* OAuth Buttons Section */}
       <div className="text-center">
         <p className="text-sm text-neutral-600 mb-4">Sign up with your preferred provider:</p>

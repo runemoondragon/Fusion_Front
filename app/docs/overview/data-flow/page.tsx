@@ -102,6 +102,169 @@ export default function DataFlowPage() {
         </p>
       </div>
 
+      {/* Visual Data Flow Diagram */}
+      <section className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg p-8 border border-gray-200">
+        <h2 className="text-2xl font-bold text-gray-900 mb-8 text-center">Interactive Data Flow Diagram</h2>
+        
+        <div className="max-w-6xl mx-auto">
+          <svg viewBox="0 0 1200 400" className="w-full h-auto">
+            {/* Background gradient */}
+            <defs>
+              <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#eff6ff" />
+                <stop offset="100%" stopColor="#f3e8ff" />
+              </linearGradient>
+              
+              {/* Arrow marker */}
+              <marker id="arrowhead" markerWidth="10" markerHeight="7" 
+                      refX="9" refY="3.5" orient="auto">
+                <polygon points="0 0, 10 3.5, 0 7" fill="#6366f1" />
+              </marker>
+              
+              {/* Data flow animation */}
+              <circle id="dataPoint" r="3" fill="#8b5cf6">
+                <animateMotion dur="4s" repeatCount="indefinite">
+                  <mpath xlinkHref="#dataPath"/>
+                </animateMotion>
+              </circle>
+              
+              {/* Path for animation */}
+              <path id="dataPath" d="M 150 200 L 350 200 L 550 200 L 750 200 L 950 200" 
+                    fill="none" stroke="none"/>
+            </defs>
+            
+            {/* Background */}
+            <rect width="1200" height="400" fill="url(#bgGradient)" rx="8"/>
+            
+            {/* Connection lines */}
+            <line x1="150" y1="200" x2="350" y2="200" stroke="#6366f1" strokeWidth="3" 
+                  markerEnd="url(#arrowhead)" strokeDasharray="5,5">
+              <animate attributeName="stroke-dashoffset" values="10;0" dur="2s" repeatCount="indefinite"/>
+            </line>
+            <line x1="350" y1="200" x2="550" y2="200" stroke="#8b5cf6" strokeWidth="3" 
+                  markerEnd="url(#arrowhead)" strokeDasharray="5,5">
+              <animate attributeName="stroke-dashoffset" values="10;0" dur="2s" repeatCount="indefinite"/>
+            </line>
+            <line x1="550" y1="200" x2="750" y2="200" stroke="#10b981" strokeWidth="3" 
+                  markerEnd="url(#arrowhead)" strokeDasharray="5,5">
+              <animate attributeName="stroke-dashoffset" values="10;0" dur="2s" repeatCount="indefinite"/>
+            </line>
+            <line x1="750" y1="200" x2="950" y2="200" stroke="#f59e0b" strokeWidth="3" 
+                  markerEnd="url(#arrowhead)" strokeDasharray="5,5">
+              <animate attributeName="stroke-dashoffset" values="10;0" dur="2s" repeatCount="indefinite"/>
+            </line>
+            
+            {/* Step 1: User Application */}
+            <g transform="translate(50, 150)">
+              <rect width="100" height="100" rx="12" fill="#dbeafe" stroke="#3b82f6" strokeWidth="2"/>
+              <rect x="20" y="20" width="60" height="8" rx="4" fill="#3b82f6"/>
+              <rect x="20" y="35" width="40" height="8" rx="4" fill="#60a5fa"/>
+              <rect x="20" y="50" width="50" height="8" rx="4" fill="#93c5fd"/>
+              <text x="50" y="80" textAnchor="middle" className="text-xs font-medium" fill="#1e40af">
+                Your App
+              </text>
+            </g>
+            
+            {/* Step 2: Fusion AI Gateway */}
+            <g transform="translate(250, 150)">
+              <rect width="100" height="100" rx="12" fill="#ede9fe" stroke="#8b5cf6" strokeWidth="2"/>
+              <circle cx="30" cy="35" r="8" fill="#8b5cf6"/>
+              <circle cx="50" cy="35" r="8" fill="#a78bfa"/>
+              <circle cx="70" cy="35" r="8" fill="#c4b5fd"/>
+              <rect x="20" y="50" width="60" height="4" rx="2" fill="#8b5cf6"/>
+              <rect x="25" y="60" width="50" height="4" rx="2" fill="#a78bfa"/>
+              <text x="50" y="80" textAnchor="middle" className="text-xs font-medium" fill="#6d28d9">
+                Fusion AI
+              </text>
+            </g>
+            
+            {/* Step 3: NeuroSwitch Engine */}
+            <g transform="translate(450, 150)">
+              <rect width="100" height="100" rx="12" fill="#ecfdf5" stroke="#10b981" strokeWidth="2"/>
+              <path d="M30,30 Q50,20 70,30 Q50,40 30,30" fill="#10b981"/>
+              <circle cx="40" cy="30" r="3" fill="#ffffff"/>
+              <circle cx="60" cy="30" r="3" fill="#ffffff"/>
+              <path d="M35,45 Q50,35 65,45" stroke="#10b981" strokeWidth="2" fill="none"/>
+              <text x="50" y="75" textAnchor="middle" className="text-xs font-medium" fill="#047857">
+                NeuroSwitch
+              </text>
+            </g>
+            
+            {/* Step 4: AI Provider */}
+            <g transform="translate(650, 150)">
+              <rect width="100" height="100" rx="12" fill="#fef3c7" stroke="#f59e0b" strokeWidth="2"/>
+              <rect x="25" y="25" width="50" height="30" rx="6" fill="#f59e0b"/>
+              <rect x="30" y="30" width="8" height="20" rx="2" fill="#ffffff"/>
+              <rect x="42" y="30" width="8" height="20" rx="2" fill="#ffffff"/>
+              <rect x="54" y="30" width="8" height="20" rx="2" fill="#ffffff"/>
+              <text x="50" y="75" textAnchor="middle" className="text-xs font-medium" fill="#d97706">
+                AI Provider
+              </text>
+            </g>
+            
+            {/* Step 5: Response */}
+            <g transform="translate(850, 150)">
+              <rect width="100" height="100" rx="12" fill="#f0fdf4" stroke="#22c55e" strokeWidth="2"/>
+              <path d="M30,35 L70,35 M30,45 L60,45 M30,55 L65,55" stroke="#22c55e" strokeWidth="3"/>
+              <circle cx="75" cy="30" r="4" fill="#22c55e"/>
+              <text x="50" y="75" textAnchor="middle" className="text-xs font-medium" fill="#16a34a">
+                Response
+              </text>
+            </g>
+            
+            {/* Labels */}
+            <text x="100" y="130" textAnchor="middle" className="text-sm font-semibold" fill="#374151">
+              1. Request
+            </text>
+            <text x="300" y="130" textAnchor="middle" className="text-sm font-semibold" fill="#374151">
+              2. Authentication
+            </text>
+            <text x="500" y="130" textAnchor="middle" className="text-sm font-semibold" fill="#374151">
+              3. Route Analysis
+            </text>
+            <text x="700" y="130" textAnchor="middle" className="text-sm font-semibold" fill="#374151">
+              4. AI Processing
+            </text>
+            <text x="900" y="130" textAnchor="middle" className="text-sm font-semibold" fill="#374151">
+              5. Response
+            </text>
+            
+            {/* Security indicators */}
+            <g transform="translate(100, 300)">
+              <rect width="80" height="20" rx="10" fill="#10b981" opacity="0.1"/>
+              <text x="40" y="15" textAnchor="middle" className="text-xs font-medium" fill="#059669">
+                🔒 TLS 1.3
+              </text>
+            </g>
+            <g transform="translate(300, 300)">
+              <rect width="80" height="20" rx="10" fill="#8b5cf6" opacity="0.1"/>
+              <text x="40" y="15" textAnchor="middle" className="text-xs font-medium" fill="#7c3aed">
+                🛡️ Validated
+              </text>
+            </g>
+            <g transform="translate(500, 300)">
+              <rect width="80" height="20" rx="10" fill="#f59e0b" opacity="0.1"/>
+              <text x="40" y="15" textAnchor="middle" className="text-xs font-medium" fill="#d97706">
+                🧠 Optimized
+              </text>
+            </g>
+            <g transform="translate(700, 300)">
+              <rect width="80" height="20" rx="10" fill="#22c55e" opacity="0.1"/>
+              <text x="40" y="15" textAnchor="middle" className="text-xs font-medium" fill="#16a34a">
+                ⚡ Fast
+              </text>
+            </g>
+            
+            {/* Animated data point */}
+            <use xlinkHref="#dataPoint"/>
+          </svg>
+        </div>
+        
+        <p className="text-center text-gray-600 mt-6">
+          Watch data flow through our secure, intelligent routing system in real-time
+        </p>
+      </section>
+
       {/* Visual Flow Diagram */}
       <section className="bg-white rounded-lg p-8 shadow-sm border border-gray-200">
         <h2 className="text-2xl font-bold text-gray-900 mb-8 text-center">Request Flow Overview</h2>

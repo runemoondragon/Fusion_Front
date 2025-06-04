@@ -12,7 +12,7 @@ export default function DocsHomePage() {
         </h1>
         <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-8">
           The unified AI orchestration platform that intelligently routes your requests 
-          to the best AI models using our proprietary NeuroSwitch™ technology.
+          to the best AI models using our proprietary <Link href="/docs/overview/neuroswitch" className="text-blue-600 hover:text-blue-700 font-semibold">NeuroSwitch™</Link> technology.
         </p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <Link 
@@ -44,25 +44,34 @@ export default function DocsHomePage() {
           <div className="text-center p-6 bg-blue-50 rounded-lg">
             <Brain className="w-12 h-12 text-blue-600 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-gray-900 mb-2">NeuroSwitch™ Technology</h3>
-            <p className="text-gray-600">
+            <p className="text-gray-600 mb-4">
               Our proprietary routing engine analyzes your prompt and automatically selects the best model for optimal results.
             </p>
+            <Link href="/docs/overview/neuroswitch" className="text-blue-600 hover:text-blue-700 text-sm font-medium">
+              Learn more →
+            </Link>
           </div>
           
           <div className="text-center p-6 bg-green-50 rounded-lg">
             <Shield className="w-12 h-12 text-green-600 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-gray-900 mb-2">Privacy First</h3>
-            <p className="text-gray-600">
+            <p className="text-gray-600 mb-4">
               Your data stays secure with enterprise-grade encryption and optional BYOAPI key integration.
             </p>
+            <Link href="/docs/privacy/logging" className="text-green-600 hover:text-green-700 text-sm font-medium">
+              Privacy details →
+            </Link>
           </div>
           
           <div className="text-center p-6 bg-purple-50 rounded-lg">
             <Zap className="w-12 h-12 text-purple-600 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-gray-900 mb-2">Lightning Fast</h3>
-            <p className="text-gray-600">
+            <p className="text-gray-600 mb-4">
               Optimized routing, caching, and failover mechanisms ensure consistent, low-latency responses.
             </p>
+            <Link href="/docs/features/caching" className="text-purple-600 hover:text-purple-700 text-sm font-medium">
+              View features →
+            </Link>
           </div>
         </div>
       </section>
@@ -78,9 +87,12 @@ export default function DocsHomePage() {
               </div>
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">Universal Model Access</h3>
-                <p className="text-gray-600">
+                <p className="text-gray-600 mb-2">
                   Access GPT-4, Claude, Gemini, and more through a single API. No need to manage multiple integrations.
                 </p>
+                <Link href="/docs/models" className="text-blue-600 hover:text-blue-700 text-sm font-medium">
+                  See supported models →
+                </Link>
               </div>
             </div>
             
@@ -90,9 +102,12 @@ export default function DocsHomePage() {
               </div>
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">Simple Integration</h3>
-                <p className="text-gray-600">
+                <p className="text-gray-600 mb-2">
                   Drop-in replacement for OpenAI API with enhanced features. Migrate in minutes, not hours.
                 </p>
+                <Link href="/docs/quickstart/first-call" className="text-green-600 hover:text-green-700 text-sm font-medium">
+                  Make your first call →
+                </Link>
               </div>
             </div>
             
@@ -102,9 +117,12 @@ export default function DocsHomePage() {
               </div>
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">BYOAPI Support</h3>
-                <p className="text-gray-600">
+                <p className="text-gray-600 mb-2">
                   Bring your own API keys for direct billing and maximum privacy, with intelligent fallbacks.
                 </p>
+                <Link href="/docs/providers/byoapi" className="text-purple-600 hover:text-purple-700 text-sm font-medium">
+                  Setup BYOAPI →
+                </Link>
               </div>
             </div>
           </div>
@@ -123,6 +141,11 @@ export default function DocsHomePage() {
             <p className="text-gray-300 text-sm mt-4">
               NeuroSwitch automatically selects the best model for your prompt, ensuring optimal results every time.
             </p>
+            <div className="mt-4">
+              <Link href="/docs/api/parameters" className="text-blue-400 hover:text-blue-300 text-sm font-medium">
+                Explore all parameters →
+              </Link>
+            </div>
           </div>
         </div>
       </section>
@@ -201,24 +224,100 @@ export default function DocsHomePage() {
               <div className="w-20 h-20 bg-green-100 rounded-lg flex items-center justify-center mx-auto mb-3">
                 <Globe className="w-8 h-8 text-green-600" />
               </div>
-              <h3 className="font-semibold text-gray-900">AI Providers</h3>
-              <p className="text-sm text-gray-600 mt-1">OpenAI, Claude, Gemini</p>
+              <h3 className="font-semibold text-gray-900">AI Provider</h3>
+              <p className="text-sm text-gray-600 mt-1">Process request</p>
             </div>
             
             <ArrowRight className="text-gray-400 w-6 h-6 transform lg:transform-none rotate-90 lg:rotate-0" />
             
             <div className="text-center">
-              <div className="w-20 h-20 bg-yellow-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-                <Zap className="w-8 h-8 text-yellow-600" />
+              <div className="w-20 h-20 bg-orange-100 rounded-lg flex items-center justify-center mx-auto mb-3">
+                <Zap className="w-8 h-8 text-orange-600" />
               </div>
               <h3 className="font-semibold text-gray-900">Response</h3>
-              <p className="text-sm text-gray-600 mt-1">Optimized result</p>
+              <p className="text-sm text-gray-600 mt-1">Optimized output</p>
             </div>
+          </div>
+          
+          <div className="mt-6 text-center">
+            <Link 
+              href="/docs/overview/data-flow" 
+              className="text-blue-600 hover:text-blue-700 font-medium"
+            >
+              View detailed data flow diagram →
+            </Link>
           </div>
         </div>
       </section>
 
-      {/* Next Steps */}
+      {/* Popular Features */}
+      <section className="bg-gray-50 rounded-lg p-8">
+        <h2 className="text-3xl font-bold text-gray-900 mb-6">Popular Features</h2>
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <Link href="/docs/features/streaming" className="bg-white p-6 rounded-lg border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all group">
+            <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center mb-3">
+              <Zap className="w-4 h-4 text-blue-600" />
+            </div>
+            <h3 className="font-semibold text-gray-900 mb-2">Streaming</h3>
+            <p className="text-gray-600 text-sm">
+              Real-time token-by-token responses
+            </p>
+            <div className="text-blue-600 font-medium text-sm mt-3 group-hover:text-blue-700">
+              Learn more →
+            </div>
+          </Link>
+
+          <Link href="/docs/features/tools" className="bg-white p-6 rounded-lg border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all group">
+            <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center mb-3">
+              <Code className="w-4 h-4 text-green-600" />
+            </div>
+            <h3 className="font-semibold text-gray-900 mb-2">Tool Calling</h3>
+            <p className="text-gray-600 text-sm">
+              Let AI use functions and external tools
+            </p>
+            <div className="text-blue-600 font-medium text-sm mt-3 group-hover:text-blue-700">
+              Learn more →
+            </div>
+          </Link>
+
+          <Link href="/docs/features/multimedia" className="bg-white p-6 rounded-lg border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all group">
+            <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center mb-3">
+              <span className="text-purple-600 text-lg">📷</span>
+            </div>
+            <h3 className="font-semibold text-gray-900 mb-2">Multimedia</h3>
+            <p className="text-gray-600 text-sm">
+              Process images and PDFs with AI
+            </p>
+            <div className="text-blue-600 font-medium text-sm mt-3 group-hover:text-blue-700">
+              Learn more →
+            </div>
+          </Link>
+
+          <Link href="/docs/features/web-search" className="bg-white p-6 rounded-lg border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all group">
+            <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center mb-3">
+              <Globe className="w-4 h-4 text-orange-600" />
+            </div>
+            <h3 className="font-semibold text-gray-900 mb-2">Web Search</h3>
+            <p className="text-gray-600 text-sm">
+              Access real-time web information
+            </p>
+            <div className="text-blue-600 font-medium text-sm mt-3 group-hover:text-blue-700">
+              Learn more →
+            </div>
+          </Link>
+        </div>
+        
+        <div className="mt-6 text-center">
+          <Link 
+            href="/docs/features" 
+            className="text-blue-600 hover:text-blue-700 font-medium"
+          >
+            View all features →
+          </Link>
+        </div>
+      </section>
+
+      {/* Ready to Get Started */}
       <section className="bg-white rounded-lg p-8 shadow-sm border border-gray-200">
         <h2 className="text-3xl font-bold text-gray-900 mb-6">Ready to Get Started?</h2>
         <div className="grid md:grid-cols-2 gap-6">

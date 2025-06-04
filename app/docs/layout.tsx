@@ -90,18 +90,18 @@ const navigation: NavItem[] = [
     title: 'Model Routing',
     emoji: '🔄',
     children: [
-      { title: 'How NeuroSwitch Routes', href: '/docs/routing/neuroswitch' },
-      { title: 'Provider Failover', href: '/docs/routing/failover' },
-      { title: 'Routing Examples', href: '/docs/routing/examples' }
+      { title: 'How NeuroSwitch Routes', href: '/docs/routing#neuroswitch' },
+      { title: 'Provider Failover', href: '/docs/routing#failover' },
+      { title: 'Routing Examples', href: '/docs/routing#examples' }
     ]
   },
   {
     title: 'Provider Routing',
     emoji: '🔀',
     children: [
-      { title: 'Bring Your Own API Key', href: '/docs/providers/byoapi' },
-      { title: 'Fallback Rules', href: '/docs/providers/fallback' },
-      { title: 'Multi-provider Logic', href: '/docs/providers/multi-provider' }
+      { title: 'Bring Your Own API Key', href: '/docs/providers#byoapi' },
+      { title: 'Fallback Rules', href: '/docs/providers#fallback' },
+      { title: 'Multi-provider Logic', href: '/docs/providers#multi-provider' }
     ]
   },
   {
@@ -120,20 +120,20 @@ const navigation: NavItem[] = [
     title: 'Use Cases',
     emoji: '🧠',
     children: [
-      { title: 'Researchers', href: '/docs/use-cases/researchers' },
-      { title: 'Startups', href: '/docs/use-cases/startups' },
-      { title: 'Agents/Tool Developers', href: '/docs/use-cases/agents' },
-      { title: 'Enterprises', href: '/docs/use-cases/enterprises' }
+      { title: 'Researchers', href: '/docs/use-cases#researchers' },
+      { title: 'Startups', href: '/docs/use-cases#startups' },
+      { title: 'Agents/Tool Developers', href: '/docs/use-cases#agents' },
+      { title: 'Enterprises', href: '/docs/use-cases#enterprises' }
     ]
   },
   {
     title: 'Community',
     emoji: '🤝',
     children: [
-      { title: 'Contribute Docs', href: '/docs/community/contribute' },
-      { title: 'Research Challenges', href: '/docs/community/research' },
-      { title: 'Request Features', href: '/docs/community/features' },
-      { title: 'Discord', href: '/docs/community/discord' }
+      { title: 'Contribute Docs', href: '/docs/community#contribute' },
+      { title: 'Research Challenges', href: '/docs/community#research' },
+      { title: 'Request Features', href: '/docs/community#features' },
+      { title: 'Discord', href: '/docs/community#discord' }
     ]
   }
 ];
@@ -200,8 +200,12 @@ export default function DocsLayout({ children }: DocsLayoutProps) {
           {/* Logo */}
           <div className="p-6 border-b border-gray-200">
             <Link href="/docs" className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
-                <Book className="w-5 h-5 text-white" />
+              <div className="flex items-center space-x-3 mb-4 md:mb-0">
+  <img
+    src="/neuroswitch.png"
+    alt="Fusion AI Logo"
+    className="w-6 h-6 object-contain rounded"
+  />
               </div>
               <div>
                 <h1 className="text-xl font-bold text-gray-900">Fusion AI</h1>

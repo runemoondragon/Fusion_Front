@@ -232,7 +232,7 @@ export default function Home() {
               {/* Placeholder Testimonial 2 */}
               <div className="p-6 bg-white border border-neutral-200 rounded-lg shadow-sm text-left">
                 <p className="font-light text-[14px] leading-relaxed italic mb-4 text-neutral-700">
-                  "I don’t need to figure out which model to use — Fusion does that for me. NeuroSwitch handles the routing, I just focus on building. We ship faster without babysitting APIs."
+                  "I don't need to figure out which model to use — Fusion does that for me. NeuroSwitch handles the routing, I just focus on building. We ship faster without babysitting APIs."
                 </p>
                 <p className="font-mono text-[11px] tracking-wider text-neutral-900">— Jenna C., Independent AI Developer</p>
               </div>
@@ -247,7 +247,7 @@ export default function Home() {
               {/* Placeholder Testimonial 4 */}
               <div className="p-6 bg-white border border-neutral-200 rounded-lg shadow-sm text-left">
                 <p className="font-light text-[14px] leading-relaxed italic mb-4 text-neutral-700">
-                  "We’ve cut our AI spend by 40% since switching to Fusion AI. NeuroSwitch automatically routes tasks to the most cost-effective model, so our engineers aren’t wasting GPT-4 on stuff Claude can handle."
+                  "We've cut our AI spend by 40% since switching to Fusion AI. NeuroSwitch automatically routes tasks to the most cost-effective model, so our engineers aren't wasting GPT-4 on stuff Claude can handle."
                 </p>
                 <p className="font-mono text-[11px] tracking-wider text-neutral-900">— Alicia M., Head of Engineering, Flowbit Inc.</p>
               </div>
@@ -296,13 +296,13 @@ export default function Home() {
                 TERMS
               </Link>
               <Link 
-                href="#" 
+                href="/contact" 
                 className="font-mono text-[11px] tracking-wider hover:text-orange-500 transition-colors"
                 target="_blank"
                 rel="noopener noreferrer"
               >
                 CONTACT
-              </Link> 
+              </Link>
               {/* Remove social links for now */}
                <Link href="#" className="font-mono text-[11px] tracking-wider hover:text-orange-500 transition-colors">
                 LINKEDIN

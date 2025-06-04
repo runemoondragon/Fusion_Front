@@ -128,6 +128,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onSwitchToSignup, retu
 
   return (
     <div className="w-full space-y-6">
+      
       {/* OAuth Buttons Section */}
       <div className="text-center">
         <p className="text-sm text-neutral-600 mb-4">Sign in with your preferred provider:</p>
