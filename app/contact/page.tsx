@@ -1,6 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { Mail, MessageSquare, Phone, MapPin, Clock, Send, User, Building, Lightbulb, Shield, ArrowRight, Github, Twitter, Linkedin } from 'lucide-react';
+import ContactForm from './ContactForm';
 
 export const metadata = {
   title: 'Contact Us - Fusion AI',
@@ -168,177 +169,15 @@ export default function ContactPage() {
             </p>
           </div>
 
-          <form className="bg-gray-50 rounded-lg p-8">
-            <div className="grid md:grid-cols-2 gap-6 mb-6">
-              <div>
-                <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-2">
-                  First Name *
-                </label>
-                <input
-                  type="text"
-                  id="firstName"
-                  name="firstName"
-                  required
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="John"
-                />
-              </div>
-              <div>
-                <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-2">
-                  Last Name *
-                </label>
-                <input
-                  type="text"
-                  id="lastName"
-                  name="lastName"
-                  required
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Doe"
-                />
-              </div>
-            </div>
-
-            <div className="grid md:grid-cols-2 gap-6 mb-6">
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                  Email Address *
-                </label>
-                <input
-                  type="email"
-                  id="email"
-                  name="email"
-                  required
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="john@company.com"
-                />
-              </div>
-              <div>
-                <label htmlFor="company" className="block text-sm font-medium text-gray-700 mb-2">
-                  Company
-                </label>
-                <input
-                  type="text"
-                  id="company"
-                  name="company"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Acme Corp"
-                />
-              </div>
-            </div>
-
-            <div className="mb-6">
-              <label htmlFor="subject" className="block text-sm font-medium text-gray-700 mb-2">
-                Subject *
-              </label>
-              <select
-                id="subject"
-                name="subject"
-                required
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="">Select a topic</option>
-                <option value="technical-support">Technical Support</option>
-                <option value="sales-enterprise">Sales & Enterprise</option>
-                <option value="partnerships">Partnerships</option>
-                <option value="billing">Billing & Accounts</option>
-                <option value="feature-request">Feature Request</option>
-                <option value="general">General Inquiry</option>
-                <option value="media">Media & Press</option>
-              </select>
-            </div>
-
-            <div className="mb-6">
-              <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-2">
-                Message *
-              </label>
-              <textarea
-                id="message"
-                name="message"
-                rows={6}
-                required
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Tell us how we can help you..."
-              ></textarea>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="text-sm text-gray-600">
-                * Required fields
-              </div>
-              <button
-                type="submit"
-                className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                <Send className="w-4 h-4 mr-2" />
-                Send Message
-              </button>
-            </div>
-          </form>
+          <ContactForm />
         </div>
       </section>
 
       {/* Office Information */}
-      <section className="py-16 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">Our Offices</h2>
-            <p className="text-lg text-gray-600">We're a distributed team with hubs around the world</p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-8">
-            {/* San Francisco HQ */}
-            <div className="bg-white rounded-lg p-6 border border-gray-200">
-              <div className="flex items-center space-x-3 mb-4">
-                <MapPin className="w-5 h-5 text-blue-600" />
-                <h3 className="text-lg font-semibold text-gray-900">San Francisco (HQ)</h3>
-              </div>
-              <div className="space-y-2 text-gray-600">
-                <p>548 Market Street, Suite 35410</p>
-                <p>San Francisco, CA 94104</p>
-                <p>United States</p>
-              </div>
-              <div className="mt-4 pt-4 border-t border-gray-200">
-                <p className="text-sm text-gray-500">Engineering & Product</p>
-              </div>
-            </div>
-
-            {/* London */}
-            <div className="bg-white rounded-lg p-6 border border-gray-200">
-              <div className="flex items-center space-x-3 mb-4">
-                <MapPin className="w-5 h-5 text-blue-600" />
-                <h3 className="text-lg font-semibold text-gray-900">London</h3>
-              </div>
-              <div className="space-y-2 text-gray-600">
-                <p>1 King William Street</p>
-                <p>London EC4N 7AF</p>
-                <p>United Kingdom</p>
-              </div>
-              <div className="mt-4 pt-4 border-t border-gray-200">
-                <p className="text-sm text-gray-500">Europe & Sales</p>
-              </div>
-            </div>
-
-            {/* Singapore */}
-            <div className="bg-white rounded-lg p-6 border border-gray-200">
-              <div className="flex items-center space-x-3 mb-4">
-                <MapPin className="w-5 h-5 text-blue-600" />
-                <h3 className="text-lg font-semibold text-gray-900">Singapore</h3>
-              </div>
-              <div className="space-y-2 text-gray-600">
-                <p>1 Raffles Place, #20-61</p>
-                <p>One Raffles Place</p>
-                <p>Singapore 048616</p>
-              </div>
-              <div className="mt-4 pt-4 border-t border-gray-200">
-                <p className="text-sm text-gray-500">Asia Pacific</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+     
 
       {/* FAQ Section */}
-      <section className="py-16 bg-white">
+      <section className="py-16 bg-gray-50">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold text-gray-900 mb-4">Frequently Asked Questions</h2>

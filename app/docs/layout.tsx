@@ -181,6 +181,15 @@ export default function DocsLayout({ children }: DocsLayoutProps) {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Mobile menu button */}
+      <div className="lg:hidden fixed top-3 left-2 z-50">
+        <button
+          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+          className="p-2 bg-white rounded-lg shadow-md border border-gray-200 hover:bg-gray-50"
+        >
+          {isSidebarOpen ? <X size={20} /> : <Menu size={20} />}
+        </button>
+      </div>
       
 
       {/* Sidebar */}
@@ -266,13 +275,7 @@ export default function DocsLayout({ children }: DocsLayoutProps) {
       <div className="lg:ml-80">
         {/* Top navigation bar for mobile */}
         <div className="lg:hidden h-16 bg-white border-b border-gray-200 flex items-center justify-start px-4 space-x-4">
-  <button
-    onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-    className="p-2 bg-white rounded-lg shadow-md border border-gray-200 hover:bg-gray-50"
-    aria-label={isSidebarOpen ? 'Close navigation menu' : 'Open navigation menu'}
-  >
-    {isSidebarOpen ? <X size={20} /> : <Menu size={20} />}
-  </button>
+  
 
   <Link href="/" className="text-blue-600 hover:text-blue-700 text-sm font-medium">
     ← Back to Fusion AI

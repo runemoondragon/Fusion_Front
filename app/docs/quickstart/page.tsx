@@ -39,7 +39,7 @@ export default function QuickstartPage() {
           <div className="space-y-3">
             <div className="flex items-center space-x-3">
               <CheckCircle className="w-5 h-5 text-green-600" />
-              <span className="text-gray-700">Go to your <Link href="/keys" className="text-blue-600 hover:text-blue-700 underline">API Keys dashboard</Link></span>
+              <span className="text-gray-700">Go to your <Link href="/dashboard/api-keys" className="text-blue-600 hover:text-blue-700 underline">API Keys dashboard</Link></span>
             </div>
             <div className="flex items-center space-x-3">
               <CheckCircle className="w-5 h-5 text-green-600" />
