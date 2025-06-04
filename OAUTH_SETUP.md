@@ -26,7 +26,7 @@ GOOGLE_CLIENT_SECRET=your-google-client-secret
 ```
 
 ### Microsoft OAuth
-1. Go to [Azure Portal](https://portal.azure.com/)
+1. Go to [Azure Portal(https://portal.azure.com/)]
 2. Navigate to Azure Active Directory > App registrations
 3. Create new registration
 4. Add redirect URI: `http://localhost:5000/auth/microsoft/callback`
@@ -43,8 +43,8 @@ MICROSOFT_CLIENT_SECRET=your-microsoft-client-secret
 3. Set Authorization callback URL: `http://localhost:5000/auth/github/callback`
 
 ```env
-GITHUB_CLIENT_ID=your-github-client-id
-GITHUB_CLIENT_SECRET=your-github-client-secret
+GITHUB_CLIENT_ID=Ov23liBFQkQKPIec2nfH
+GITHUB_CLIENT_SECRET=a9ae39ca457cfa1eba8c05343de2a8eeba7c2137
 ```
 
 ### Apple OAuth (Future Implementation)
