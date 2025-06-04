@@ -271,7 +271,7 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
 
       // Create new user
       const newUserResult = await pool.query(
-        'INSERT INTO users (email, oauth_provider, oauth_id, display_name, is_verified) VALUES ($1, $2, $3, $4, TRUE) RETURNING *',
+        'INSERT INTO users (email, password_hash, oauth_provider, oauth_id, display_name, is_verified) VALUES ($1, NULL, $2, $3, $4, TRUE) RETURNING *',
         [profile.emails?.[0]?.value || '', 'google', profile.id, profile.displayName || profile.name?.givenName || 'Google User']
       );
       const newUser = newUserResult.rows[0];
@@ -303,7 +303,7 @@ if (process.env.MICROSOFT_CLIENT_ID && process.env.MICROSOFT_CLIENT_SECRET) {
       }
 
       const newUserResult = await pool.query(
-        'INSERT INTO users (email, oauth_provider, oauth_id, display_name, is_verified) VALUES ($1, $2, $3, $4, TRUE) RETURNING *',
+        'INSERT INTO users (email, password_hash, oauth_provider, oauth_id, display_name, is_verified) VALUES ($1, NULL, $2, $3, $4, TRUE) RETURNING *',
         [profile.emails?.[0]?.value || '', 'microsoft', profile.id, profile.displayName || profile.name?.givenName || 'User']
       );
       const newUser = newUserResult.rows[0];
@@ -373,7 +373,7 @@ if (process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET) {
       const displayName = profile.displayName || profile.username || 'GitHub User';
       
       const newUserResult = await pool.query(
-        'INSERT INTO users (email, oauth_provider, oauth_id, display_name, is_verified) VALUES ($1, $2, $3, $4, TRUE) RETURNING *',
+        'INSERT INTO users (email, password_hash, oauth_provider, oauth_id, display_name, is_verified) VALUES ($1, NULL, $2, $3, $4, TRUE) RETURNING *',
         [email, 'github', profile.id, displayName]
       );
       const newUser = newUserResult.rows[0];

@@ -14,7 +14,7 @@ $$ LANGUAGE plpgsql;
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     email VARCHAR(255) UNIQUE NOT NULL,
-    password_hash TEXT NOT NULL, -- For local accounts; can be a placeholder for OAuth-only users
+    password_hash TEXT, -- For local accounts; NULL for OAuth-only users
     display_name VARCHAR(100),
     avatar_url TEXT,
     is_active BOOLEAN DEFAULT TRUE,     -- Account is active, not banned/disabled by admin
