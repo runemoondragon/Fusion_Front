@@ -3,19 +3,22 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Search, Book, Menu, X, ChevronDown, ChevronRight } from 'lucide-react';
+import { 
+  Search, Book, Menu, X, ChevronDown, ChevronRight, Rocket, HelpCircle, 
+  Scale, Cpu, Zap, Lock, Shuffle, GitBranch, Code, Lightbulb, Users, CreditCard
+} from 'lucide-react';
 
 interface NavItem {
   title: string;
   href?: string;
   children?: NavItem[];
-  emoji?: string;
+  icon?: React.ComponentType<{ className?: string }>;
 }
 
 const navigation: NavItem[] = [
   {
     title: 'Overview',
-    emoji: '📘',
+    icon: Book,
     children: [
       { title: 'What is Fusion AI?', href: '/docs' },
       { title: 'Key Benefits', href: '/docs/overview/benefits' },
@@ -25,7 +28,7 @@ const navigation: NavItem[] = [
   },
   {
     title: 'Quickstart',
-    emoji: '🚀',
+    icon: Rocket,
     children: [
       { title: 'Get Your API Key', href: '/docs/quickstart' },
       { title: 'Test Your First Call', href: '/docs/quickstart/first-call' },
@@ -35,7 +38,7 @@ const navigation: NavItem[] = [
   },
   {
     title: 'FAQ',
-    emoji: '❓',
+    icon: HelpCircle,
     children: [
       { title: 'Common Questions', href: '/docs/faq' },
       { title: 'Token Usage', href: '/docs/faq/tokens' },
@@ -45,7 +48,7 @@ const navigation: NavItem[] = [
   },
   {
     title: 'Principles',
-    emoji: '⚖️',
+    icon: Scale,
     children: [
       { title: 'Privacy First', href: '/docs/principles#privacy' },
       { title: 'Model Agnostic', href: '/docs/principles#agnostic' },
@@ -55,7 +58,7 @@ const navigation: NavItem[] = [
   },
   {
     title: 'Models',
-    emoji: '🤖',
+    icon: Cpu,
     children: [
       { title: 'Supported Models', href: '/docs/models' },
       { title: 'Fusion-Native Models', href: '/docs/models/fusion-native' },
@@ -65,7 +68,7 @@ const navigation: NavItem[] = [
   },
   {
     title: 'Features',
-    emoji: '⚡',
+    icon: Zap,
     children: [
       { title: 'Overview', href: '/docs/features' },
       { title: 'Prompt Caching', href: '/docs/features/caching' },
@@ -77,8 +80,18 @@ const navigation: NavItem[] = [
     ]
   },
   {
+    title: 'Payments',
+    icon: CreditCard,
+    children: [
+      { title: 'Payment Methods', href: '/docs/payments' },
+      { title: 'Stripe Integration', href: '/docs/payments/stripe' },
+      { title: 'Bitcoin & Lightning', href: '/docs/payments/bitcoin' },
+      { title: 'Billing & Invoices', href: '/docs/payments/billing' }
+    ]
+  },
+  {
     title: 'Privacy and Logging',
-    emoji: '🔒',
+    icon: Lock,
     children: [
       { title: 'What We Log', href: '/docs/privacy/logging' },
       { title: 'What We Don\'t Log', href: '/docs/privacy/no-logging' },
@@ -88,25 +101,25 @@ const navigation: NavItem[] = [
   },
   {
     title: 'Model Routing',
-    emoji: '🔄',
+    icon: Shuffle,
     children: [
       { title: 'How NeuroSwitch Routes', href: '/docs/routing#neuroswitch' },
       { title: 'Provider Failover', href: '/docs/routing#failover' },
-      { title: 'Routing Examples', href: '/docs/routing#examples' }
+      { title: 'Routing Examples', href: '/docs/routing/examples' }
     ]
   },
   {
     title: 'Provider Routing',
-    emoji: '🔀',
+    icon: GitBranch,
     children: [
-      { title: 'Bring Your Own API Key', href: '/docs/providers#byoapi' },
+      { title: 'Bring Your Own API Key', href: '/docs/providers/byoapi' },
       { title: 'Fallback Rules', href: '/docs/providers#fallback' },
       { title: 'Multi-provider Logic', href: '/docs/providers#multi-provider' }
     ]
   },
   {
     title: 'API Reference',
-    emoji: '📤',
+    icon: Code,
     children: [
       { title: 'Overview', href: '/docs/api' },
       { title: 'Authentication', href: '/docs/api/auth' },
@@ -118,7 +131,7 @@ const navigation: NavItem[] = [
   },
   {
     title: 'Use Cases',
-    emoji: '🧠',
+    icon: Lightbulb,
     children: [
       { title: 'Researchers', href: '/docs/use-cases#researchers' },
       { title: 'Startups', href: '/docs/use-cases#startups' },
@@ -128,12 +141,12 @@ const navigation: NavItem[] = [
   },
   {
     title: 'Community',
-    emoji: '🤝',
+    icon: Users,
     children: [
       { title: 'Contribute Docs', href: '/docs/community#contribute' },
       { title: 'Research Challenges', href: '/docs/community#research' },
       { title: 'Request Features', href: '/docs/community#features' },
-      { title: 'Discord', href: '/docs/community#discord' }
+      { title: 'Discord', href: '/docs/community/discord' }
     ]
   }
 ];
@@ -186,6 +199,7 @@ export default function DocsLayout({ children }: DocsLayoutProps) {
         <button
           onClick={() => setIsSidebarOpen(!isSidebarOpen)}
           className="p-2 bg-white rounded-lg shadow-md border border-gray-200 hover:bg-gray-50"
+          aria-label={isSidebarOpen ? "Close navigation menu" : "Open navigation menu"}
         >
           {isSidebarOpen ? <X size={20} /> : <Menu size={20} />}
         </button>
@@ -225,48 +239,54 @@ export default function DocsLayout({ children }: DocsLayoutProps) {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                aria-label="Search documentation"
               />
             </div>
           </div>
 
           {/* Navigation */}
           <div className="flex-1 overflow-y-auto p-4 space-y-2">
-            {filteredNavigation.map((section) => (
-              <div key={section.title}>
-                <button
-                  onClick={() => toggleSection(section.title)}
-                  className="w-full flex items-center justify-between p-2 text-left hover:bg-gray-50 rounded-lg transition-colors"
-                >
-                  <div className="flex items-center space-x-3">
-                    <span className="text-lg">{section.emoji}</span>
-                    <span className="font-medium text-gray-900">{section.title}</span>
-                  </div>
-                  {expandedSections.has(section.title) ? 
-                    <ChevronDown className="w-4 h-4 text-gray-400" /> : 
-                    <ChevronRight className="w-4 h-4 text-gray-400" />
-                  }
-                </button>
-                
-                {expandedSections.has(section.title) && section.children && (
-                  <div className="ml-8 mt-1 space-y-1">
-                    {section.children.map((item) => (
-                      <Link
-                        key={item.href}
-                        href={item.href || '#'}
-                        onClick={() => setIsSidebarOpen(false)}
-                        className={`block px-3 py-2 text-sm rounded-md transition-colors ${
-                          pathname === item.href
-                            ? 'bg-blue-100 text-blue-700 font-medium'
-                            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                        }`}
-                      >
-                        {item.title}
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
+            {filteredNavigation.map((section) => {
+              const IconComponent = section.icon;
+              return (
+                <div key={section.title}>
+                  <button
+                    onClick={() => toggleSection(section.title)}
+                    className="w-full flex items-center justify-between p-2 text-left hover:bg-gray-50 rounded-lg transition-colors"
+                    aria-expanded={expandedSections.has(section.title)}
+                    aria-label={`Toggle ${section.title} section`}
+                  >
+                    <div className="flex items-center space-x-3">
+                      {IconComponent && <IconComponent className="w-5 h-5 text-gray-700" />}
+                      <span className="font-medium text-gray-900">{section.title}</span>
+                    </div>
+                    {expandedSections.has(section.title) ? 
+                      <ChevronDown className="w-4 h-4 text-gray-400" /> : 
+                      <ChevronRight className="w-4 h-4 text-gray-400" />
+                    }
+                  </button>
+                  
+                  {expandedSections.has(section.title) && section.children && (
+                    <div className="ml-8 mt-1 space-y-1">
+                      {section.children.map((item) => (
+                        <Link
+                          key={item.href}
+                          href={item.href || '#'}
+                          onClick={() => setIsSidebarOpen(false)}
+                          className={`block px-3 py-2 text-sm rounded-md transition-colors ${
+                            pathname === item.href
+                              ? 'bg-blue-100 text-blue-700 font-medium'
+                              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                          }`}
+                        >
+                          {item.title}
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
