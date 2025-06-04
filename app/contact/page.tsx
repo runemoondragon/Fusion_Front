@@ -12,27 +12,7 @@ export default function ContactPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <Link href="/" className="flex items-center space-x-3">
-              <div className="flex items-center space-x-3 mb-4 md:mb-0">
-  <img
-    src="/neuroswitch.png"
-    alt="Fusion AI Logo"
-    className="w-6 h-6 object-contain rounded"
-  /></div>
-              <span className="text-xl font-bold text-gray-900">Fusion AI</span>
-            </Link>
-            <Link 
-              href="/docs" 
-              className="text-gray-600 hover:text-gray-900 font-medium"
-            >
-              Documentation
-            </Link>
-          </div>
-        </div>
-      </header>
+     
 
       {/* Hero Section */}
       <section className="bg-gradient-to-br from-blue-600 to-purple-700 text-white py-16">
