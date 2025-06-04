@@ -90,7 +90,12 @@ export default function Navigation() {
     <>
     <nav className="bg-white border-b border-neutral-200 h-16 flex items-center px-4 md:px-6 lg:px-8">
       <div className="flex items-center justify-between w-full">
-        <div className="flex items-center">
+        <div className="flex items-center space-x-3 mb-4 md:mb-0">
+  <img
+    src="/neuroswitch.png"
+    alt="Fusion AI Logo"
+    className="w-6 h-6 object-contain rounded"
+  />
         <Link href="/" className="font-semibold text-lg tracking-tight mr-6">
             Fusion AI
           </Link>
