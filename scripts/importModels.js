@@ -5,7 +5,7 @@ const { Pool } = require('pg');
 
 // Update with your actual connection string or use environment variables
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgres://postgres:loveboy@localhost:5432/aiappdb'
+  connectionString: process.env.DATABASE_URL 
 });
 
 const csvFilePath = path.join(__dirname, '../models2.csv');

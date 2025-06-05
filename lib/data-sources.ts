@@ -1,16 +1,27 @@
 import { ModelRanking, LLMStatsModel, OpenRouterModel, ArtificialAnalysisModel } from '@/types/rankings';
+import { promises as fs } from 'fs';
+import path from 'path';
 
 // Cache configuration
 const CACHE_TTL = {
-  LLM_STATS: 24 * 60 * 60 * 1000, // 24 hours
-  OPENROUTER: 6 * 60 * 60 * 1000, // 6 hours  
-  ARTIFICIAL_ANALYSIS: 12 * 60 * 60 * 1000, // 12 hours
+  OPENROUTER: 24 * 60 * 60 * 1000, // 24 hours for JSON file cache
+  ARTIFICIAL_ANALYSIS: 12 * 60 * 60 * 1000, // 12 hours (disabled)
 };
+
+// JSON cache file path
+const CACHE_DIR = path.join(process.cwd(), 'cache');
+const OPENROUTER_CACHE_FILE = path.join(CACHE_DIR, 'openrouter-models.json');
 
 interface CacheEntry<T> {
   data: T;
   timestamp: number;
   ttl: number;
+}
+
+interface JSONCache {
+  data: OpenRouterModel[];
+  timestamp: number;
+  last_updated: string;
 }
 
 class DataCache {
@@ -43,80 +54,80 @@ class DataCache {
 
 const cache = new DataCache();
 
-// LLM-Stats data source
-export async function fetchLLMStatsData(): Promise<LLMStatsModel[]> {
-  const cacheKey = 'llm-stats-latest';
-  const cached = cache.get<LLMStatsModel[]>(cacheKey);
-  
-  if (cached) {
-    console.log('Using cached LLM-Stats data');
-    return cached;
-  }
-
+// Ensure cache directory exists
+async function ensureCacheDir(): Promise<void> {
   try {
-    console.log('Fetching fresh LLM-Stats data...');
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
-    
-    const response = await fetch('https://llm-stats.org/latest.json', {
-      headers: {
-        'User-Agent': 'Fusion-AI-Rankings/1.0',
-      },
-      signal: controller.signal,
-      next: { revalidate: 86400 }, // 24 hours
-    });
-
-    clearTimeout(timeoutId);
-
-    if (!response.ok) {
-      throw new Error(`LLM-Stats API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    
-    // Transform LLM-Stats format to our internal format
-    const models: LLMStatsModel[] = Object.entries(data.models || {}).map(([name, modelData]: [string, any]) => ({
-      name,
-      provider: modelData.provider || 'Unknown',
-      pricing: {
-        prompt: modelData.pricing?.prompt || 0,
-        completion: modelData.pricing?.completion || 0,
-      },
-      benchmarks: modelData.benchmarks || {},
-      context_length: modelData.context_length || 0,
-      release_date: modelData.release_date,
-    }));
-
-    cache.set(cacheKey, models, CACHE_TTL.LLM_STATS);
-    return models;
+    await fs.mkdir(CACHE_DIR, { recursive: true });
   } catch (error) {
-    console.error('Failed to fetch LLM-Stats data:', error);
-    // Return empty array instead of throwing - let the aggregator handle fallbacks
-    return [];
+    console.error('Failed to create cache directory:', error);
   }
 }
 
-// OpenRouter data source
+// Save OpenRouter data to JSON file
+async function saveOpenRouterCache(data: OpenRouterModel[]): Promise<void> {
+  try {
+    await ensureCacheDir();
+    const cacheData: JSONCache = {
+      data,
+      timestamp: Date.now(),
+      last_updated: new Date().toISOString(),
+    };
+    await fs.writeFile(OPENROUTER_CACHE_FILE, JSON.stringify(cacheData, null, 2));
+    console.log(`Saved ${data.length} models to JSON cache`);
+  } catch (error) {
+    console.error('Failed to save OpenRouter cache:', error);
+  }
+}
+
+// Load OpenRouter data from JSON file
+async function loadOpenRouterCache(): Promise<OpenRouterModel[] | null> {
+  try {
+    const fileContent = await fs.readFile(OPENROUTER_CACHE_FILE, 'utf-8');
+    const cacheData: JSONCache = JSON.parse(fileContent);
+    
+    // Check if cache is still fresh (within 24 hours)
+    const age = Date.now() - cacheData.timestamp;
+    if (age < CACHE_TTL.OPENROUTER) {
+      console.log(`Using cached OpenRouter data (${Math.round(age / 1000 / 60 / 60)}h old)`);
+      return cacheData.data;
+    } else {
+      console.log('OpenRouter cache is stale, will fetch fresh data');
+      return null;
+    }
+  } catch (error) {
+    console.log('No valid OpenRouter cache found, will fetch fresh data');
+    return null;
+  }
+}
+
+// OpenRouter data source (now primary and only active source)
 export async function fetchOpenRouterData(): Promise<OpenRouterModel[]> {
   const cacheKey = 'openrouter-models';
   const cached = cache.get<OpenRouterModel[]>(cacheKey);
   
   if (cached) {
-    console.log('Using cached OpenRouter data');
+    console.log('Using in-memory cached OpenRouter data');
     return cached;
+  }
+
+  // Try to load from JSON file cache first
+  const fileCache = await loadOpenRouterCache();
+  if (fileCache) {
+    cache.set(cacheKey, fileCache, CACHE_TTL.OPENROUTER);
+    return fileCache;
   }
 
   try {
     console.log('Fetching fresh OpenRouter data...');
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
     
     const response = await fetch('https://openrouter.ai/api/v1/models', {
       headers: {
         'User-Agent': 'Fusion-AI-Rankings/1.0',
       },
       signal: controller.signal,
-      next: { revalidate: 21600 }, // 6 hours
+      next: { revalidate: 86400 }, // 24 hours
     });
 
     clearTimeout(timeoutId);
@@ -128,7 +139,10 @@ export async function fetchOpenRouterData(): Promise<OpenRouterModel[]> {
     const result = await response.json();
     const models = result.data || [];
 
+    // Save to both memory cache and JSON file
     cache.set(cacheKey, models, CACHE_TTL.OPENROUTER);
+    await saveOpenRouterCache(models);
+
     return models;
   } catch (error) {
     console.error('Failed to fetch OpenRouter data:', error);
@@ -136,100 +150,95 @@ export async function fetchOpenRouterData(): Promise<OpenRouterModel[]> {
   }
 }
 
-// ArtificialAnalysis data source (GraphQL)
-export async function fetchArtificialAnalysisData(): Promise<ArtificialAnalysisModel[]> {
-  const cacheKey = 'artificial-analysis-models';
-  const cached = cache.get<ArtificialAnalysisModel[]>(cacheKey);
+// TODO: Re-enable when API access is granted by ArtificialAnalysis.ai
+// ArtificialAnalysis data source (GraphQL) - TEMPORARILY DISABLED
+// export async function fetchArtificialAnalysisData(): Promise<ArtificialAnalysisModel[]> {
+//   const cacheKey = 'artificial-analysis-models';
+//   const cached = cache.get<ArtificialAnalysisModel[]>(cacheKey);
   
-  if (cached) {
-    console.log('Using cached ArtificialAnalysis data');
-    return cached;
-  }
+//   if (cached) {
+//     console.log('Using cached ArtificialAnalysis data');
+//     return cached;
+//   }
 
-  try {
-    console.log('Fetching fresh ArtificialAnalysis data...');
+//   try {
+//     console.log('Fetching fresh ArtificialAnalysis data...');
     
-    const query = `
-      query GetModels {
-        models {
-          model
-          provider
-          benchmarks {
-            mmlu
-            gsm8k
-            hellaswag
-            arc_challenge
-            truthfulqa
-            big_bench
-          }
-          performance {
-            latency_p50
-            latency_p95
-            throughput
-          }
-        }
-      }
-    `;
+//     const query = `
+//       query GetModels {
+//         models {
+//           model
+//           provider
+//           benchmarks {
+//             mmlu
+//             gsm8k
+//             hellaswag
+//             arc_challenge
+//             truthfulqa
+//             big_bench
+//           }
+//           performance {
+//             latency_p50
+//             latency_p95
+//             throughput
+//           }
+//         }
+//       }
+//     `;
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+//     const controller = new AbortController();
+//     const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
 
-    const response = await fetch('https://api.artificialanalysis.ai/graphql', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'User-Agent': 'Fusion-AI-Rankings/1.0',
-        // Add API key from environment if required
-        ...(process.env.ARTIFICIAL_ANALYSIS_API_KEY && {
-          'Authorization': `Bearer ${process.env.ARTIFICIAL_ANALYSIS_API_KEY}`
-        }),
-      },
-      signal: controller.signal,
-      body: JSON.stringify({ query }),
-      next: { revalidate: 43200 }, // 12 hours
-    });
+//     const response = await fetch('https://api.artificialanalysis.ai/graphql', {
+//       method: 'POST',
+//       headers: {
+//         'Content-Type': 'application/json',
+//         'User-Agent': 'Fusion-AI-Rankings/1.0',
+//         // Add API key from environment if required
+//         ...(process.env.ARTIFICIAL_ANALYSIS_API_KEY && {
+//           'Authorization': `Bearer ${process.env.ARTIFICIAL_ANALYSIS_API_KEY}`
+//         }),
+//       },
+//       signal: controller.signal,
+//       body: JSON.stringify({ query }),
+//       next: { revalidate: 43200 }, // 12 hours
+//     });
 
-    clearTimeout(timeoutId);
+//     clearTimeout(timeoutId);
 
-    if (!response.ok) {
-      throw new Error(`ArtificialAnalysis API error: ${response.status}`);
-    }
+//     if (!response.ok) {
+//       throw new Error(`ArtificialAnalysis API error: ${response.status}`);
+//     }
 
-    const result = await response.json();
-    const models = result.data?.models || [];
+//     const result = await response.json();
+//     const models = result.data?.models || [];
 
-    cache.set(cacheKey, models, CACHE_TTL.ARTIFICIAL_ANALYSIS);
-    return models;
-  } catch (error) {
-    console.error('Failed to fetch ArtificialAnalysis data:', error);
-    // Don't throw here - this is optional data
-    return [];
-  }
-}
+//     cache.set(cacheKey, models, CACHE_TTL.ARTIFICIAL_ANALYSIS);
+//     return models;
+//   } catch (error) {
+//     console.error('Failed to fetch ArtificialAnalysis data:', error);
+//     // Don't throw here - this is optional data
+//     return [];
+//   }
+// }
 
-// Composite data aggregation
+// Composite data aggregation - now using OpenRouter as primary source
 export async function aggregateModelData(): Promise<ModelRanking[]> {
   const startTime = Date.now();
   console.log('Starting model data aggregation...');
 
   try {
-    // Fetch data from all sources in parallel
-    const [llmStatsData, openRouterData, artificialAnalysisData] = await Promise.allSettled([
-      fetchLLMStatsData(),
-      fetchOpenRouterData(), 
-      fetchArtificialAnalysisData(),
-    ]);
+    // Fetch data only from OpenRouter (primary source)
+    const openRouterData = await fetchOpenRouterData();
+    const openRouter = openRouterData || [];
 
-    const llmStats = llmStatsData.status === 'fulfilled' ? llmStatsData.value : [];
-    const openRouter = openRouterData.status === 'fulfilled' ? openRouterData.value : [];
-    const artificialAnalysis = artificialAnalysisData.status === 'fulfilled' ? artificialAnalysisData.value : [];
+    // TODO: Re-enable ArtificialAnalysis when API access is granted
+    const artificialAnalysis: ArtificialAnalysisModel[] = [];
 
-    console.log(`Data fetched: ${llmStats.length} LLM-Stats, ${openRouter.length} OpenRouter, ${artificialAnalysis.length} ArtificialAnalysis`);
+    console.log(`Data fetched: ${openRouter.length} OpenRouter models`);
 
     // Create lookup maps for efficient matching
-    const openRouterMap = new Map(openRouter.map(m => [m.name.toLowerCase(), m]));
     const artificialAnalysisMap = new Map(artificialAnalysis.map(m => [m.model.toLowerCase(), m]));
-    const llmStatsMap = new Map(llmStats.map(m => [m.name.toLowerCase(), m]));
 
     // Fusion AI featured models
     const featuredModels = new Set([
@@ -238,28 +247,30 @@ export async function aggregateModelData(): Promise<ModelRanking[]> {
       'gemini-pro',
       'llama-3.1-70b',
       'claude-3-haiku',
+      'claude-3-opus',
+      'gpt-4-turbo',
+      'gemini-1.5-pro',
     ]);
 
     const models: ModelRanking[] = [];
     const processedModels = new Set<string>();
 
-    // Helper function to create a ModelRanking from available data
+    // Helper function to create a ModelRanking from OpenRouter data
     const createModelRanking = (
       name: string,
       provider: string,
-      llmStatsModel?: LLMStatsModel,
-      openRouterModel?: OpenRouterModel,
+      openRouterModel: OpenRouterModel,
       artificialAnalysisModel?: ArtificialAnalysisModel
     ): ModelRanking => {
       const modelKey = name.toLowerCase();
 
-      // Combine benchmarks from all sources
+      // Use benchmarks from ArtificialAnalysis if available (currently empty)
       const benchmarks = {
-        ...(llmStatsModel?.benchmarks || {}),
         ...(artificialAnalysisModel?.benchmarks || {}),
       };
 
-      // Calculate composite score (weighted average of benchmarks)
+      // Calculate composite score based on available benchmarks
+      // Since we don't have benchmark data from OpenRouter, we'll use a basic scoring system
       const benchmarkWeights = {
         mmlu: 0.25,
         gsm8k: 0.20,
@@ -279,22 +290,15 @@ export async function aggregateModelData(): Promise<ModelRanking[]> {
         }
       });
 
-      composite_score = totalWeight > 0 ? composite_score / totalWeight : 0;
-
-      // Use OpenRouter pricing if available, otherwise LLM-Stats
-      const pricing = openRouterModel ? {
-        prompt_cost: parseFloat(openRouterModel.pricing.prompt) * 1000000, // Convert to per 1M tokens
-        completion_cost: parseFloat(openRouterModel.pricing.completion) * 1000000,
-        currency: 'USD',
-      } : llmStatsModel ? {
-        prompt_cost: llmStatsModel.pricing.prompt,
-        completion_cost: llmStatsModel.pricing.completion,
-        currency: 'USD',
-      } : {
-        prompt_cost: 0,
-        completion_cost: 0,
-        currency: 'USD',
-      };
+      // If no benchmarks available, use a simple heuristic based on model features
+      if (totalWeight === 0) {
+        // Basic scoring based on context length and pricing (inverse relationship)
+        const contextScore = Math.min(openRouterModel.context_length / 200000, 1) * 30; // Max 30 points
+        const pricingScore = Math.max(0, (1 - parseFloat(openRouterModel.pricing.prompt)) * 20); // Max 20 points
+        composite_score = contextScore + pricingScore;
+      } else {
+        composite_score = composite_score / totalWeight;
+      }
 
       return {
         id: `${provider}-${name}`.toLowerCase().replace(/[^a-z0-9-]/g, '-'),
@@ -302,20 +306,25 @@ export async function aggregateModelData(): Promise<ModelRanking[]> {
         provider,
         composite_score,
         composite_rank: 0, // Will be calculated after sorting
-        pricing,
+        pricing: {
+          prompt_cost: parseFloat(openRouterModel.pricing.prompt) * 1000000, // Convert to per 1M tokens
+          completion_cost: parseFloat(openRouterModel.pricing.completion) * 1000000,
+          currency: 'USD',
+        },
         benchmarks,
         metadata: {
-          context_length: openRouterModel?.context_length || llmStatsModel?.context_length || 0,
-          release_date: llmStatsModel?.release_date,
-          modality: openRouterModel?.architecture?.modality === 'multimodal' ? 'multimodal' : 'text',
-          availability: 'active', // Default, can be overridden
-          featured: featuredModels.has(modelKey),
-          architecture: openRouterModel?.architecture?.tokenizer,
+          context_length: openRouterModel.context_length || 0,
+          release_date: undefined, // Not available from OpenRouter
+          modality: openRouterModel.architecture?.modality === 'multimodal' ? 'multimodal' : 'text',
+          availability: 'active', // All OpenRouter models are active
+          featured: featuredModels.has(modelKey) || featuredModels.has(name.toLowerCase()),
+          architecture: openRouterModel.architecture?.tokenizer,
+          parameter_count: undefined, // Extract from model name if possible
         },
         performance: artificialAnalysisModel?.performance,
         sources: {
-          llm_stats: !!llmStatsModel,
-          openrouter: !!openRouterModel,
+          llm_stats: false, // No longer using LLM-Stats
+          openrouter: true,
           artificial_analysis: !!artificialAnalysisModel,
         },
         last_updated: new Date().toISOString(),
@@ -323,61 +332,31 @@ export async function aggregateModelData(): Promise<ModelRanking[]> {
       };
     };
 
-    // Process LLM-Stats models first (primary source when available)
-    llmStats.forEach(model => {
+    // Process all OpenRouter models
+    openRouter.forEach(model => {
       const modelKey = model.name.toLowerCase();
-      const openRouterModel = openRouterMap.get(modelKey);
       const artificialAnalysisModel = artificialAnalysisMap.get(modelKey);
+      
+      // Extract provider from OpenRouter model ID
+      const provider = model.id.split('/')[0] || 'Unknown';
 
       models.push(createModelRanking(
         model.name,
-        model.provider,
+        provider,
         model,
-        openRouterModel,
         artificialAnalysisModel
       ));
       
       processedModels.add(modelKey);
     });
 
-    // If LLM-Stats is empty/failed, use OpenRouter as primary source
-    if (llmStats.length === 0 && openRouter.length > 0) {
-      console.log('LLM-Stats unavailable, using OpenRouter as primary source');
-      
-      openRouter.forEach(model => {
-        const modelKey = model.name.toLowerCase();
-        if (!processedModels.has(modelKey)) {
-          const artificialAnalysisModel = artificialAnalysisMap.get(modelKey);
-          
-          // Extract provider from OpenRouter model ID or use a default
-          const provider = model.id.split('/')[0] || 'Unknown';
-
-          models.push(createModelRanking(
-            model.name,
-            provider,
-            undefined,
-            model,
-            artificialAnalysisModel
-          ));
-          
-          processedModels.add(modelKey);
-        }
-      });
-    }
-
     // Add any remaining models from ArtificialAnalysis that weren't processed
+    // (Currently empty since ArtificialAnalysis is disabled)
     artificialAnalysis.forEach(model => {
       const modelKey = model.model.toLowerCase();
       if (!processedModels.has(modelKey)) {
-        models.push(createModelRanking(
-          model.model,
-          model.provider,
-          undefined,
-          openRouterMap.get(modelKey),
-          model
-        ));
-        
-        processedModels.add(modelKey);
+        // Would need to create a minimal OpenRouter-like object
+        // Skipping for now since artificialAnalysis is empty
       }
     });
 
@@ -401,6 +380,13 @@ export async function aggregateModelData(): Promise<ModelRanking[]> {
 export async function refreshModelData(force = false): Promise<void> {
   if (force) {
     cache.clear();
+    // Also remove JSON cache file to force fresh fetch
+    try {
+      await fs.unlink(OPENROUTER_CACHE_FILE);
+      console.log('Cleared JSON cache file');
+    } catch (error) {
+      // File might not exist, that's OK
+    }
   }
   
   await aggregateModelData();
@@ -408,22 +394,43 @@ export async function refreshModelData(force = false): Promise<void> {
 
 // Get data source status
 export function getDataSourceStatus() {
-  const llmStatsCache = cache.get('llm-stats-latest');
   const openRouterCache = cache.get('openrouter-models');
-  const artificialAnalysisCache = cache.get('artificial-analysis-models');
 
   return {
     llm_stats: {
-      status: llmStatsCache ? 'ok' : 'stale',
-      last_sync: llmStatsCache ? new Date().toISOString() : null,
+      status: 'disabled',
+      last_sync: null,
+      note: 'Permanently disabled due to stale data (9+ months old)',
     },
     openrouter: {
       status: openRouterCache ? 'ok' : 'stale', 
       last_sync: openRouterCache ? new Date().toISOString() : null,
     },
     artificial_analysis: {
-      status: artificialAnalysisCache ? 'ok' : 'stale',
-      last_sync: artificialAnalysisCache ? new Date().toISOString() : null,
+      status: 'disabled',
+      last_sync: null,
+      note: 'Temporarily disabled - waiting for API access',
     },
   };
+}
+
+// Get cache file info for debugging
+export async function getCacheInfo() {
+  try {
+    const stats = await fs.stat(OPENROUTER_CACHE_FILE);
+    const age = Date.now() - stats.mtime.getTime();
+    return {
+      exists: true,
+      lastModified: stats.mtime.toISOString(),
+      ageHours: Math.round(age / 1000 / 60 / 60),
+      isStale: age > CACHE_TTL.OPENROUTER,
+    };
+  } catch (error) {
+    return {
+      exists: false,
+      lastModified: null,
+      ageHours: null,
+      isStale: true,
+    };
+  }
 } 

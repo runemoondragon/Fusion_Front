@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "import-platform-models": "npx tsc scripts/importPlatformModels.ts --outDir dist --target es2020 --module commonjs --esModuleInterop && node dist/importPlatformModels.js"
   },
   "dependencies": {
     "@formspree/react": "^3.0.0",
@@ -20,6 +21,7 @@
     "bcrypt": "^5.1.1",
     "chart.js": "^4.4.9",
     "csv-parse": "^5.6.0",
+    "dotenv": "^16.5.0",
     "embla-carousel-react": "^8.5.2",
     "express": "^5.1.0",
     "framer-motion": "^11.16.1",
@@ -46,6 +48,7 @@
     "@types/node": "^20.17.46",
     "@types/papaparse": "^5.3.16",
     "@types/passport": "^1.0.17",
+    "@types/pg": "^8.15.4",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
     "@types/react-syntax-highlighter": "^15.5.13",
