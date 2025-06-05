@@ -30,7 +30,7 @@ export default function DiscordCommunityPage() {
           </p>
           <div className="flex items-center space-x-4">
             <Link 
-              href="https://discord.gg/fusionai" 
+              href="https://discord.gg/KjJcytdfGR" 
               className="inline-flex items-center px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
             >
               <MessageSquare className="w-4 h-4 mr-2" />
@@ -38,7 +38,7 @@ export default function DiscordCommunityPage() {
             </Link>
             <div className="text-sm text-indigo-700">
               <Users className="w-4 h-4 inline mr-1" />
-              1,200+ members
+               members
             </div>
           </div>
         </div>
@@ -281,7 +281,7 @@ export default function DiscordCommunityPage() {
             Become part of our growing community and help shape the future of AI routing.
           </p>
           <Link 
-            href="https://discord.gg/fusionai"
+            href="https://discord.gg/KjJcytdfGR"
             className="inline-flex items-center px-8 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-lg font-medium"
           >
             <MessageSquare className="w-5 h-5 mr-2" />

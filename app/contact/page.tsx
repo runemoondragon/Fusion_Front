@@ -242,7 +242,7 @@ export default function ContactPage() {
               <span>LinkedIn</span>
             </Link>
             <Link 
-              href="#"
+              href="https://discord.gg/KjJcytdfGR"
               className="flex items-center space-x-2 text-gray-300 hover:text-white transition-colors"
             >
               <MessageSquare className="w-6 h-6" />

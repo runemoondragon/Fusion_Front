@@ -8,7 +8,7 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL || 'postgres://postgres:loveboy@localhost:5432/aiappdb'
 });
 
-const csvFilePath = path.join(__dirname, '../models1.csv');
+const csvFilePath = path.join(__dirname, '../models2.csv');
 
 // Helper to parse costs like "$1.25" or "$0"
 const parseCost = (val) => {

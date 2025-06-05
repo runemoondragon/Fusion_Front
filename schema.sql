@@ -1,6 +1,5 @@
 -- Drop old tables if they exist (clean slate)
-DROP TABLE IF EXISTS user_settings,model_preferences,api_keys,users,payments,credit_transactions,user_credits,user_auto_topup_settings,models,user_external_api_keys,admin_actions_logs,app_config,chats,messages,usage_logs,organizations,organization_members,providers; -- Ensure all tables are listed for a clean drop, and app_config is only once.
-
+DROP TABLE IF EXISTS models; 
 -- Generic function to update an updated_at timestamp column
 CREATE OR REPLACE FUNCTION trigger_set_timestamp()
 RETURNS TRIGGER AS $$
@@ -205,7 +204,7 @@ CREATE TABLE IF NOT EXISTS models (
     supports_vision BOOLEAN DEFAULT false,
     description TEXT,
     release_date DATE,
-    is_active BOOLEAN DEFAULT true,
+    is_active BOOLEAN DEFAULT false,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
